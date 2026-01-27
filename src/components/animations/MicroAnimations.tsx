@@ -170,3 +170,155 @@ export const PulseElement: React.FC<{ children: React.ReactNode }> = ({ children
 
   return <Animated.View style={pulseStyle}>{children}</Animated.View>;
 };
+
+// 6. Staggered Fade In - For lists and grids
+export const StaggeredFadeIn: React.FC<{ 
+  children: React.ReactNode; 
+  index: number;
+  baseDelay?: number;
+}> = ({ children, index, baseDelay = 50 }) => {
+  const opacity = useSharedValue(0);
+  const translateY = useSharedValue(20);
+
+  useEffect(() => {
+    const delay = index * baseDelay;
+    const timeout = setTimeout(() => {
+      opacity.value = withTiming(1, { duration: 400, easing: Easing.out(Easing.ease) });
+      translateY.value = withTiming(0, { duration: 400, easing: Easing.out(Easing.ease) });
+    }, delay);
+    return () => clearTimeout(timeout);
+  }, [index]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: translateY.value }],
+  }));
+
+  return <Animated.View style={animatedStyle}>{children}</Animated.View>;
+};
+
+// 7. Breathing Glow - For mystical elements
+export const BreathingGlow: React.FC<{ 
+  children: React.ReactNode;
+  color?: string;
+  intensity?: number;
+}> = ({ children, color = '#A855F7', intensity = 20 }) => {
+  const glowRadius = useSharedValue(intensity * 0.5);
+  const glowOpacity = useSharedValue(0.4);
+
+  useEffect(() => {
+    glowRadius.value = withRepeat(
+      withSequence(
+        withTiming(intensity, { duration: 2500, easing: Easing.inOut(Easing.ease) }),
+        withTiming(intensity * 0.5, { duration: 2500, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+    glowOpacity.value = withRepeat(
+      withSequence(
+        withTiming(0.8, { duration: 2500, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.4, { duration: 2500, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  const glowStyle = useAnimatedStyle(() => ({
+    shadowColor: color,
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: glowRadius.value,
+    shadowOpacity: glowOpacity.value,
+  }));
+
+  return <Animated.View style={glowStyle}>{children}</Animated.View>;
+};
+
+// 8. Orbit Animation - For celestial objects
+export const OrbitElement: React.FC<{ 
+  children: React.ReactNode;
+  radius?: number;
+  duration?: number;
+  reverse?: boolean;
+}> = ({ children, radius = 50, duration = 10000, reverse = false }) => {
+  const rotation = useSharedValue(reverse ? 360 : 0);
+
+  useEffect(() => {
+    rotation.value = withRepeat(
+      withTiming(reverse ? 0 : 360, { duration, easing: Easing.linear }),
+      -1,
+      false
+    );
+  }, []);
+
+  const orbitStyle = useAnimatedStyle(() => ({
+    transform: [
+      { rotate: `${rotation.value}deg` },
+      { translateX: radius },
+      { rotate: `${-rotation.value}deg` },
+    ],
+  }));
+
+  return <Animated.View style={orbitStyle}>{children}</Animated.View>;
+};
+
+// 9. Scale On Press - For interactive elements
+export const ScaleOnPress: React.FC<{ 
+  children: React.ReactNode;
+  scale?: number;
+}> = ({ children, scale: pressScale = 0.95 }) => {
+  const scale = useSharedValue(1);
+
+  const onPressIn = () => {
+    scale.value = withTiming(pressScale, { duration: 100 });
+  };
+
+  const onPressOut = () => {
+    scale.value = withTiming(1, { duration: 200, easing: Easing.bounce });
+  };
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <Animated.View 
+      style={animatedStyle}
+      onTouchStart={onPressIn}
+      onTouchEnd={onPressOut}
+    >
+      {children}
+    </Animated.View>
+  );
+};
+
+// 10. Fade Slide - Smooth entrance for modals and cards
+export const FadeSlide: React.FC<{ 
+  children: React.ReactNode;
+  direction?: 'up' | 'down' | 'left' | 'right';
+  delay?: number;
+}> = ({ children, direction = 'up', delay = 0 }) => {
+  const opacity = useSharedValue(0);
+  const translateX = useSharedValue(direction === 'left' ? -30 : direction === 'right' ? 30 : 0);
+  const translateY = useSharedValue(direction === 'up' ? 30 : direction === 'down' ? -30 : 0);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      opacity.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.ease) });
+      translateX.value = withTiming(0, { duration: 500, easing: Easing.out(Easing.ease) });
+      translateY.value = withTiming(0, { duration: 500, easing: Easing.out(Easing.ease) });
+    }, delay);
+    return () => clearTimeout(timeout);
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+    ],
+  }));
+
+  return <Animated.View style={animatedStyle}>{children}</Animated.View>;
+};

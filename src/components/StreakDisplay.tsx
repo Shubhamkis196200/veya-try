@@ -54,7 +54,7 @@ export function StreakDisplay({ compact = false, onPress }: StreakDisplayProps) 
   
   if (!data) return null;
   
-  const nextBadge = streakService.getNextBadgeProgress();
+  const nextBadge = streakService.getNextStreakBadge();
   
   if (compact) {
     return (

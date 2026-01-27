@@ -10,11 +10,15 @@ interface Profile {
   birth_date?: string;
   birth_time?: string;
   birth_place?: string;
+  birth_location?: string;  // Alias for birth_place
   dob?: string;
   sun_sign?: string;
   moon_sign?: string;
   rising_sign?: string;
   zodiac_sign?: string;
+  element?: string;
+  ruling_planet?: string;
+  personality_summary?: string;
   intent?: string;
   fortune_method?: string;
   notifications_enabled?: boolean;
@@ -28,6 +32,7 @@ interface AuthState {
   profile: Profile | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isOnboarded: boolean;
   
   // Actions
   initialize: () => Promise<void>;
@@ -36,6 +41,7 @@ interface AuthState {
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: any }>;
   setProfile: (profile: Profile | null) => void;
+  setOnboarded: (value: boolean) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -44,6 +50,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   profile: null,
   isLoading: true,
   isAuthenticated: false,
+  isOnboarded: false,
 
   initialize: async () => {
     try {
@@ -90,7 +97,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signUp: async (email, password) => {
     const { data, error } = await auth.signUp(email, password);
-    if (!error && data.user) {
+    if (!error && data?.user) {
       set({ user: data.user, session: data.session, isAuthenticated: true });
     }
     return { error };
@@ -98,7 +105,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signIn: async (email, password) => {
     const { data, error } = await auth.signIn(email, password);
-    if (!error && data.user) {
+    if (!error && data?.user) {
       const { data: profile } = await db.profiles.get(data.user.id);
       set({ 
         user: data.user, 
@@ -127,6 +134,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   setProfile: (profile) => set({ profile }),
+
+  setOnboarded: async (value: boolean) => {
+    set({ isOnboarded: value });
+    // Persist to AsyncStorage if needed
+  },
 }));
 
 // Journal Store

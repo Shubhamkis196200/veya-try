@@ -12,7 +12,7 @@ import Animated, { FadeIn, FadeInDown, SlideInRight } from 'react-native-reanima
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useAuthStore } from '../../src/stores';
-import { friendService, Friend } from '../../src/lib/friends';
+import { friendService, Friend, CompatibilityResult } from '../../src/lib/friends';
 import { StarField } from '../../src/components';
 
 const ZODIAC_SIGNS = [
@@ -31,6 +31,7 @@ export default function FriendsScreen() {
   const [newFriendName, setNewFriendName] = useState('');
   const [newFriendSign, setNewFriendSign] = useState('');
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
+  const [compatibility, setCompatibility] = useState<CompatibilityResult | null>(null);
   
   // Load friends
   useEffect(() => {
@@ -38,7 +39,7 @@ export default function FriendsScreen() {
   }, []);
   
   const loadFriends = async () => {
-    const loaded = await friendService.loadFriends(profile?.id || 'guest');
+    const loaded = await friendService.initialize(profile?.id || 'guest');
     setFriends(loaded);
   };
   
@@ -50,13 +51,12 @@ export default function FriendsScreen() {
     
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     
-    const friend = await friendService.addFriend(profile?.id || 'guest', {
+    const friend = await friendService.addFriend({
       name: newFriendName.trim(),
-      zodiacSign: newFriendSign,
-      avatarInitial: newFriendName.trim()[0].toUpperCase(),
-    });
+      zodiac_sign: newFriendSign,
+    }, userSign);
     
-    setFriends([...friends, friend]);
+    setFriends([friend, ...friends]);
     setNewFriendName('');
     setNewFriendSign('');
     setShowAddModal(false);
@@ -74,7 +74,7 @@ export default function FriendsScreen() {
           text: 'Remove',
           style: 'destructive',
           onPress: async () => {
-            await friendService.removeFriend(profile?.id || 'guest', friendId);
+            await friendService.removeFriend(friendId);
             setFriends(friends.filter(f => f.id !== friendId));
           },
         },
@@ -85,11 +85,9 @@ export default function FriendsScreen() {
   const viewCompatibility = (friend: Friend) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedFriend(friend);
+    const compat = friendService.getCompatibilityDetails(userSign, friend);
+    setCompatibility(compat);
   };
-  
-  const compatibility = selectedFriend 
-    ? friendService.getCompatibilityDetails(userSign, selectedFriend.zodiacSign)
-    : null;
   
   return (
     <View style={[styles.container, { backgroundColor: colors.bg.primary }]}>
@@ -117,7 +115,7 @@ export default function FriendsScreen() {
             >
               <TouchableOpacity 
                 style={styles.closeButton}
-                onPress={() => setSelectedFriend(null)}
+                onPress={() => { setSelectedFriend(null); setCompatibility(null); }}
               >
                 <Ionicons name="close" size={24} color={colors.text.muted} />
               </TouchableOpacity>
@@ -128,7 +126,7 @@ export default function FriendsScreen() {
                 </View>
                 <Text style={[styles.vsText, { color: colors.accent }]}>+</Text>
                 <View style={[styles.signBadge, { backgroundColor: colors.accentMuted }]}>
-                  <Text style={styles.signText}>{selectedFriend.zodiacSign}</Text>
+                  <Text style={styles.signText}>{selectedFriend.zodiac_sign}</Text>
                 </View>
               </View>
               
@@ -206,7 +204,7 @@ export default function FriendsScreen() {
                 >
                   <View style={[styles.avatar, { backgroundColor: colors.primaryMuted }]}>
                     <Text style={[styles.avatarText, { color: colors.primary }]}>
-                      {friend.avatarInitial}
+                      {friend.avatar_initial}
                     </Text>
                   </View>
                   <View style={styles.friendInfo}>
@@ -214,12 +212,12 @@ export default function FriendsScreen() {
                       {friend.name}
                     </Text>
                     <Text style={[styles.friendSign, { color: colors.text.muted }]}>
-                      ☉ {friend.zodiacSign}
+                      ☉ {friend.zodiac_sign}
                     </Text>
                   </View>
                   <View style={styles.compatBadge}>
                     <Text style={[styles.compatValue, { color: colors.accent }]}>
-                      {friend.compatibility}%
+                      {friend.compatibility_score || '?'}%
                     </Text>
                   </View>
                   <Ionicons name="chevron-forward" size={20} color={colors.text.muted} />
@@ -341,7 +339,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginBottom: 20,
   },
-  closeButton: { position: 'absolute', top: 12, right: 12 },
+  closeButton: { position: 'absolute', top: 12, right: 12, zIndex: 1 },
   compatHeader: {
     flexDirection: 'row',
     alignItems: 'center',

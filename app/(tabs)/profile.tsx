@@ -1,274 +1,152 @@
 /**
- * PROFILE SCREEN - ENHANCED
- * Birth chart display, Big 3, element balance, settings
+ * PROFILE SCREEN - COMPLETE
  */
-import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { useTheme, useThemeStore } from '../../src/hooks/useTheme';
 import { useAuthStore } from '../../src/stores';
-import { BirthChart } from '../../src/components/BirthChart';
-import { InviteFriends } from '../../src/components/ShareCard';
-import { getZodiacSymbol } from '../../src/utils/zodiac';
 
-// Element data
-const ELEMENTS = {
-  fire: { color: '#FF6B35', signs: ['Aries', 'Leo', 'Sagittarius'] },
-  earth: { color: '#6B8E23', signs: ['Taurus', 'Virgo', 'Capricorn'] },
-  air: { color: '#87CEEB', signs: ['Gemini', 'Libra', 'Aquarius'] },
-  water: { color: '#4169E1', signs: ['Cancer', 'Scorpio', 'Pisces'] },
+const ZODIAC_EMOJIS: Record<string, string> = {
+  Aries: '♈', Taurus: '♉', Gemini: '♊', Cancer: '♋',
+  Leo: '♌', Virgo: '♍', Libra: '♎', Scorpio: '♏',
+  Sagittarius: '♐', Capricorn: '♑', Aquarius: '♒', Pisces: '♓',
 };
 
-function getElement(sign: string): keyof typeof ELEMENTS {
-  for (const [element, data] of Object.entries(ELEMENTS)) {
-    if (data.signs.includes(sign)) return element as keyof typeof ELEMENTS;
-  }
-  return 'fire';
+const ELEMENTS: Record<string, { color: string; icon: string }> = {
+  fire: { color: '#EF4444', icon: '🔥' },
+  earth: { color: '#22C55E', icon: '🌿' },
+  air: { color: '#60A5FA', icon: '💨' },
+  water: { color: '#3B82F6', icon: '💧' },
+};
+
+function getElement(sign: string): string {
+  const fireSign = ['Aries', 'Leo', 'Sagittarius'];
+  const earthSigns = ['Taurus', 'Virgo', 'Capricorn'];
+  const airSigns = ['Gemini', 'Libra', 'Aquarius'];
+  if (fireSign.includes(sign)) return 'fire';
+  if (earthSigns.includes(sign)) return 'earth';
+  if (airSigns.includes(sign)) return 'air';
+  return 'water';
 }
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { colors, spacing, radius, mode, setMode, isDark } = useTheme();
   const { profile, signOut } = useAuthStore();
-  
-  const [showChart, setShowChart] = useState(false);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   
   const sunSign = profile?.sun_sign || profile?.zodiac_sign || 'Aries';
   const moonSign = profile?.moon_sign || 'Cancer';
-  const risingSign = profile?.rising_sign || 'Leo';
-  
-  // Calculate element balance (mock for demo)
-  const elementBalance = {
-    fire: 30,
-    earth: 25,
-    air: 20,
-    water: 25,
-  };
-  
-  const handleSignOut = () => {
+  const risingSign = profile?.rising_sign || 'Libra';
+  const element = getElement(sunSign);
+  const elementData = ELEMENTS[element];
+  const userName = profile?.name || 'Stargazer';
+  const userEmail = profile?.email || '';
+  const method = profile?.fortune_method || 'western';
+  const intent = profile?.intent || 'guidance';
+
+  const handleSignOut = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    signOut();
-    router.replace('/');
+    await signOut();
+    router.replace('/(auth)/welcome');
   };
-  
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg.primary }]}>
-      <LinearGradient colors={colors.gradient.cosmic} style={StyleSheet.absoluteFill} />
+    <View style={styles.container}>
+      <LinearGradient colors={['#0A0A12', '#12122A', '#0A0A12']} style={StyleSheet.absoluteFill} />
       
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScrollView 
-          style={styles.scroll} 
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-        >
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
           {/* Header */}
-          <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
-            <View style={[styles.avatar, { backgroundColor: colors.primaryMuted }]}>
-              <Text style={styles.avatarText}>
-                {(profile?.name?.[0] || 'V').toUpperCase()}
-              </Text>
+          <Animated.View entering={FadeIn.duration(500)} style={styles.header}>
+            <View style={[styles.avatar, { backgroundColor: `${elementData.color}30` }]}>
+              <Text style={styles.avatarEmoji}>{ZODIAC_EMOJIS[sunSign] || '✨'}</Text>
             </View>
-            <Text style={[styles.name, { color: colors.text.primary }]}>
-              {profile?.name || 'Cosmic Traveler'}
-            </Text>
-            <Text style={[styles.email, { color: colors.text.muted }]}>
-              {profile?.email || ''}
-            </Text>
+            <Text style={styles.name}>{userName}</Text>
+            <Text style={styles.email}>{userEmail}</Text>
           </Animated.View>
-          
+
           {/* Big 3 */}
-          <Animated.View entering={FadeInDown.delay(100)} style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text.secondary }]}>
-              YOUR BIG 3
-            </Text>
-            <View style={[styles.big3Container, { backgroundColor: colors.bg.elevated }]}>
-              <View style={styles.big3Item}>
-                <View style={[styles.big3Icon, { backgroundColor: '#FFB800' + '20' }]}>
-                  <Text style={styles.big3Emoji}>☉</Text>
-                </View>
-                <Text style={[styles.big3Label, { color: colors.text.muted }]}>Sun</Text>
-                <Text style={[styles.big3Sign, { color: colors.text.primary }]}>{sunSign}</Text>
-              </View>
-              
-              <View style={styles.big3Item}>
-                <View style={[styles.big3Icon, { backgroundColor: '#E8E8F0' + '20' }]}>
-                  <Text style={styles.big3Emoji}>☽</Text>
-                </View>
-                <Text style={[styles.big3Label, { color: colors.text.muted }]}>Moon</Text>
-                <Text style={[styles.big3Sign, { color: colors.text.primary }]}>{moonSign}</Text>
-              </View>
-              
-              <View style={styles.big3Item}>
-                <View style={[styles.big3Icon, { backgroundColor: colors.primary + '20' }]}>
-                  <Text style={styles.big3Emoji}>↑</Text>
-                </View>
-                <Text style={[styles.big3Label, { color: colors.text.muted }]}>Rising</Text>
-                <Text style={[styles.big3Sign, { color: colors.text.primary }]}>{risingSign}</Text>
-              </View>
-            </View>
-          </Animated.View>
-          
-          {/* Birth Chart Toggle */}
-          <Animated.View entering={FadeInDown.delay(150)}>
-            <TouchableOpacity
-              style={[styles.chartToggle, { backgroundColor: colors.bg.elevated }]}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowChart(!showChart);
-              }}
-            >
-              <Ionicons name="planet" size={22} color={colors.primary} />
-              <Text style={[styles.chartToggleText, { color: colors.text.primary }]}>
-                {showChart ? 'Hide Birth Chart' : 'View Birth Chart'}
-              </Text>
-              <Ionicons 
-                name={showChart ? 'chevron-up' : 'chevron-down'} 
-                size={20} 
-                color={colors.text.muted} 
-              />
-            </TouchableOpacity>
-            
-            {showChart && (
-              <Animated.View entering={FadeIn} style={styles.chartContainer}>
-                <BirthChart />
-              </Animated.View>
-            )}
-          </Animated.View>
-          
-          {/* Element Balance */}
           <Animated.View entering={FadeInDown.delay(200)} style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text.secondary }]}>
-              ELEMENT BALANCE
-            </Text>
-            <View style={[styles.elementsCard, { backgroundColor: colors.bg.elevated }]}>
-              {Object.entries(elementBalance).map(([element, percentage]) => (
-                <View key={element} style={styles.elementRow}>
-                  <View style={styles.elementInfo}>
-                    <View 
-                      style={[
-                        styles.elementDot, 
-                        { backgroundColor: ELEMENTS[element as keyof typeof ELEMENTS].color }
-                      ]} 
-                    />
-                    <Text style={[styles.elementName, { color: colors.text.primary }]}>
-                      {element.charAt(0).toUpperCase() + element.slice(1)}
-                    </Text>
-                  </View>
-                  <View style={[styles.elementBar, { backgroundColor: colors.bg.muted }]}>
-                    <View 
-                      style={[
-                        styles.elementFill,
-                        { 
-                          width: `${percentage}%`,
-                          backgroundColor: ELEMENTS[element as keyof typeof ELEMENTS].color,
-                        }
-                      ]} 
-                    />
-                  </View>
-                  <Text style={[styles.elementPercent, { color: colors.text.muted }]}>
-                    {percentage}%
-                  </Text>
-                </View>
-              ))}
+            <Text style={styles.sectionTitle}>Your Big 3</Text>
+            <View style={styles.big3Container}>
+              <View style={styles.big3Card}>
+                <Text style={styles.big3Label}>☀️ Sun</Text>
+                <Text style={styles.big3Sign}>{sunSign}</Text>
+                <Text style={styles.big3Desc}>Core identity</Text>
+              </View>
+              <View style={styles.big3Card}>
+                <Text style={styles.big3Label}>🌙 Moon</Text>
+                <Text style={styles.big3Sign}>{moonSign}</Text>
+                <Text style={styles.big3Desc}>Emotions</Text>
+              </View>
+              <View style={styles.big3Card}>
+                <Text style={styles.big3Label}>⬆️ Rising</Text>
+                <Text style={styles.big3Sign}>{risingSign}</Text>
+                <Text style={styles.big3Desc}>Outer self</Text>
+              </View>
             </View>
           </Animated.View>
-          
+
+          {/* Element */}
+          <Animated.View entering={FadeInDown.delay(300)} style={styles.section}>
+            <Text style={styles.sectionTitle}>Your Element</Text>
+            <View style={[styles.elementCard, { borderColor: elementData.color }]}>
+              <Text style={styles.elementIcon}>{elementData.icon}</Text>
+              <View>
+                <Text style={[styles.elementName, { color: elementData.color }]}>
+                  {element.charAt(0).toUpperCase() + element.slice(1)}
+                </Text>
+                <Text style={styles.elementDesc}>
+                  {element === 'fire' ? 'Passionate, dynamic, temperamental' :
+                   element === 'earth' ? 'Grounded, practical, reliable' :
+                   element === 'air' ? 'Intellectual, social, analytical' :
+                   'Intuitive, emotional, sensitive'}
+                </Text>
+              </View>
+            </View>
+          </Animated.View>
+
           {/* Settings */}
-          <Animated.View entering={FadeInDown.delay(250)} style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text.secondary }]}>
-              SETTINGS
-            </Text>
+          <Animated.View entering={FadeInDown.delay(400)} style={styles.section}>
+            <Text style={styles.sectionTitle}>Preferences</Text>
             
-            {/* Theme Toggle */}
-            <View style={[styles.settingCard, { backgroundColor: colors.bg.elevated }]}>
+            <View style={styles.settingCard}>
               <View style={styles.settingRow}>
-                <Ionicons name="moon" size={22} color={colors.text.secondary} />
-                <Text style={[styles.settingText, { color: colors.text.primary }]}>
-                  Dark Mode
-                </Text>
-                <Switch
-                  value={isDark}
-                  onValueChange={(value) => {
-                    Haptics.selectionAsync();
-                    setMode(value ? 'dark' : 'light');
-                  }}
-                  trackColor={{ false: colors.bg.muted, true: colors.primary }}
-                  thumbColor="#FFFFFF"
-                />
-              </View>
-              
-              <View style={[styles.divider, { backgroundColor: colors.border.default }]} />
-              
-              <View style={styles.settingRow}>
-                <Ionicons name="notifications" size={22} color={colors.text.secondary} />
-                <Text style={[styles.settingText, { color: colors.text.primary }]}>
-                  Notifications
-                </Text>
-                <Switch
-                  value={notificationsEnabled}
-                  onValueChange={(value) => {
-                    Haptics.selectionAsync();
-                    setNotificationsEnabled(value);
-                  }}
-                  trackColor={{ false: colors.bg.muted, true: colors.primary }}
-                  thumbColor="#FFFFFF"
-                />
+                <Ionicons name="planet-outline" size={22} color="#8B7FD9" />
+                <Text style={styles.settingLabel}>Astrology Type</Text>
+                <Text style={styles.settingValue}>{method.charAt(0).toUpperCase() + method.slice(1)}</Text>
               </View>
             </View>
             
-            {/* Menu Items */}
-            <View style={[styles.menuCard, { backgroundColor: colors.bg.elevated }]}>
-              <TouchableOpacity style={styles.menuItem}>
-                <Ionicons name="person-circle" size={22} color={colors.text.secondary} />
-                <Text style={[styles.menuText, { color: colors.text.primary }]}>Edit Profile</Text>
-                <Ionicons name="chevron-forward" size={20} color={colors.text.muted} />
-              </TouchableOpacity>
-              
-              <View style={[styles.divider, { backgroundColor: colors.border.default }]} />
-              
-              <TouchableOpacity style={styles.menuItem}>
-                <Ionicons name="help-circle" size={22} color={colors.text.secondary} />
-                <Text style={[styles.menuText, { color: colors.text.primary }]}>Help & Support</Text>
-                <Ionicons name="chevron-forward" size={20} color={colors.text.muted} />
-              </TouchableOpacity>
-              
-              <View style={[styles.divider, { backgroundColor: colors.border.default }]} />
-              
-              <TouchableOpacity style={styles.menuItem}>
-                <Ionicons name="document-text" size={22} color={colors.text.secondary} />
-                <Text style={[styles.menuText, { color: colors.text.primary }]}>Privacy Policy</Text>
-                <Ionicons name="chevron-forward" size={20} color={colors.text.muted} />
-              </TouchableOpacity>
+            <View style={styles.settingCard}>
+              <View style={styles.settingRow}>
+                <Ionicons name="heart-outline" size={22} color="#8B7FD9" />
+                <Text style={styles.settingLabel}>Primary Focus</Text>
+                <Text style={styles.settingValue}>{intent.charAt(0).toUpperCase() + intent.slice(1)}</Text>
+              </View>
             </View>
-          </Animated.View>
-          
-          {/* Invite Friends */}
-          <Animated.View entering={FadeInDown.delay(300)}>
-            <InviteFriends />
-          </Animated.View>
-          
-          {/* Sign Out */}
-          <Animated.View entering={FadeInDown.delay(350)}>
-            <TouchableOpacity
-              style={[styles.signOutButton, { backgroundColor: colors.error + '15' }]}
-              onPress={handleSignOut}
-            >
-              <Ionicons name="log-out" size={22} color={colors.error} />
-              <Text style={[styles.signOutText, { color: colors.error }]}>Sign Out</Text>
+            
+            <TouchableOpacity style={styles.settingCard} onPress={() => router.push('/features/friends')}>
+              <View style={styles.settingRow}>
+                <Ionicons name="people-outline" size={22} color="#8B7FD9" />
+                <Text style={styles.settingLabel}>Friends</Text>
+                <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.3)" />
+              </View>
             </TouchableOpacity>
           </Animated.View>
-          
-          {/* Version */}
-          <Text style={[styles.version, { color: colors.text.muted }]}>
-            Veya v1.0.0
-          </Text>
-          
+
+          {/* Sign Out */}
+          <Animated.View entering={FadeInDown.delay(500)} style={styles.signOutSection}>
+            <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
+              <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+              <Text style={styles.signOutText}>Sign Out</Text>
+            </TouchableOpacity>
+          </Animated.View>
+
+          <Text style={styles.version}>Veya v1.6 • Made with ✨</Text>
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -276,95 +154,31 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  safe: { flex: 1 },
-  scroll: { flex: 1 },
-  content: { padding: 20, paddingBottom: 100 },
-  header: { alignItems: 'center', marginBottom: 24 },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  avatarText: { fontSize: 32, fontWeight: '700', color: '#A855F7' },
-  name: { fontSize: 24, fontWeight: '700', marginBottom: 4 },
-  email: { fontSize: 14 },
-  section: { marginBottom: 20 },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1,
-    marginBottom: 12,
-    marginLeft: 4,
-  },
-  big3Container: {
-    flexDirection: 'row',
-    borderRadius: 16,
-    padding: 16,
-  },
-  big3Item: { flex: 1, alignItems: 'center' },
-  big3Icon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  big3Emoji: { fontSize: 22 },
-  big3Label: { fontSize: 12, marginBottom: 4 },
-  big3Sign: { fontSize: 15, fontWeight: '600' },
-  chartToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 12,
-    gap: 12,
-  },
-  chartToggleText: { flex: 1, fontSize: 16, fontWeight: '500' },
-  chartContainer: { marginBottom: 20 },
-  elementsCard: { borderRadius: 16, padding: 16 },
-  elementRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  elementInfo: { flexDirection: 'row', alignItems: 'center', width: 80 },
-  elementDot: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
-  elementName: { fontSize: 14 },
-  elementBar: { flex: 1, height: 6, borderRadius: 3, marginHorizontal: 12 },
-  elementFill: { height: '100%', borderRadius: 3 },
-  elementPercent: { width: 40, textAlign: 'right', fontSize: 13 },
-  settingCard: { borderRadius: 16, padding: 4, marginBottom: 12 },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    gap: 12,
-  },
-  settingText: { flex: 1, fontSize: 16 },
-  divider: { height: 1, marginHorizontal: 12 },
-  menuCard: { borderRadius: 16, padding: 4 },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    gap: 12,
-  },
-  menuText: { flex: 1, fontSize: 16 },
-  signOutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderRadius: 16,
-    marginTop: 8,
-    gap: 8,
-  },
-  signOutText: { fontSize: 16, fontWeight: '600' },
-  version: { textAlign: 'center', fontSize: 13, marginTop: 24 },
+  container: { flex: 1, backgroundColor: '#0A0A12' },
+  safeArea: { flex: 1 },
+  content: { padding: 20, paddingBottom: 160 },
+  header: { alignItems: 'center', paddingVertical: 24 },
+  avatar: { width: 100, height: 100, borderRadius: 50, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  avatarEmoji: { fontSize: 48 },
+  name: { fontSize: 26, fontWeight: '600', color: '#FFF' },
+  email: { fontSize: 14, color: 'rgba(255,255,255,0.5)', marginTop: 4 },
+  section: { marginBottom: 24 },
+  sectionTitle: { fontSize: 13, color: 'rgba(255,255,255,0.5)', letterSpacing: 1, marginBottom: 12, textTransform: 'uppercase' },
+  big3Container: { flexDirection: 'row', gap: 10 },
+  big3Card: { flex: 1, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
+  big3Label: { fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 },
+  big3Sign: { fontSize: 16, fontWeight: '600', color: '#FFF', marginBottom: 2 },
+  big3Desc: { fontSize: 11, color: 'rgba(255,255,255,0.3)' },
+  elementCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 16, gap: 14, borderWidth: 1 },
+  elementIcon: { fontSize: 36 },
+  elementName: { fontSize: 18, fontWeight: '600', marginBottom: 2 },
+  elementDesc: { fontSize: 13, color: 'rgba(255,255,255,0.5)' },
+  settingCard: { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 14, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
+  settingRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  settingLabel: { flex: 1, fontSize: 15, color: '#FFF' },
+  settingValue: { fontSize: 14, color: 'rgba(255,255,255,0.5)' },
+  signOutSection: { marginTop: 20 },
+  signOutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(239,68,68,0.2)' },
+  signOutText: { fontSize: 15, color: '#EF4444', fontWeight: '600' },
+  version: { textAlign: 'center', color: 'rgba(255,255,255,0.2)', fontSize: 12, marginTop: 24 },
 });

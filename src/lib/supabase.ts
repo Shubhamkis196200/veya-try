@@ -150,4 +150,65 @@ export const db = {
       return { data, error };
     },
   },
+  
+  journal: {
+    list: async (userId: string) => {
+      const { data, error } = await supabase
+        .from('journal_entries')
+        .select('*')
+        .eq('user_id', userId)
+        .order('date', { ascending: false });
+      return { data, error };
+    },
+    
+    create: async (entry: any) => {
+      const { data, error } = await supabase
+        .from('journal_entries')
+        .insert(entry)
+        .select()
+        .single();
+      return { data, error };
+    },
+    
+    delete: async (id: string) => {
+      const { error } = await supabase
+        .from('journal_entries')
+        .delete()
+        .eq('id', id);
+      return { error };
+    },
+  },
+  
+  favorites: {
+    list: async (userId: string, type?: string) => {
+      let query = supabase
+        .from('favorites')
+        .select('*')
+        .eq('user_id', userId);
+      
+      if (type) {
+        query = query.eq('type', type);
+      }
+      
+      const { data, error } = await query.order('created_at', { ascending: false });
+      return { data, error };
+    },
+    
+    add: async (favorite: any) => {
+      const { data, error } = await supabase
+        .from('favorites')
+        .insert(favorite)
+        .select()
+        .single();
+      return { data, error };
+    },
+    
+    remove: async (id: string) => {
+      const { error } = await supabase
+        .from('favorites')
+        .delete()
+        .eq('id', id);
+      return { error };
+    },
+  },
 };

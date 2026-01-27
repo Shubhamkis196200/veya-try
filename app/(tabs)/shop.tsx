@@ -257,7 +257,7 @@ export default function ShopScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   scrollView: { flex: 1 },
-  content: { paddingBottom: 100 },
+  content: { paddingBottom: 160 },
   header: { padding: SPACING.lg, paddingBottom: SPACING.md },
   title: { ...FONTS.h1, color: COLORS.textPrimary },
   subtitle: { ...FONTS.body, color: COLORS.textMuted, marginTop: SPACING.xs },

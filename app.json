@@ -7,7 +7,7 @@
     "icon": "./assets/icon.png",
     "scheme": "veya",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -15,14 +15,19 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.veya.app"
+      "bundleIdentifier": "com.veya.app",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Veya needs access to your microphone to convert your voice to text for cosmic consultations.",
+        "NSSpeechRecognitionUsageDescription": "Veya uses speech recognition to transcribe your questions for the stars."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0A0A0F"
       },
-      "package": "com.veya.app"
+      "package": "com.veya.app",
+      "permissions": ["RECORD_AUDIO"]
     },
     "web": {
       "bundler": "metro",
@@ -31,7 +36,8 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-speech-recognition"
     ],
     "experiments": {
       "typedRoutes": true
@@ -44,11 +50,12 @@
         "projectId": "bc189d9b-4f4f-403a-90dc-256ba92e24b5"
       }
     },
-    "install": {
-      "exclude": [
-        "typescript"
-      ]
+    "owner": "shubham987654",
+    "runtimeVersion": {
+      "policy": "appVersion"
     },
-    "owner": "shubham987654"
+    "updates": {
+      "url": "https://u.expo.dev/bc189d9b-4f4f-403a-90dc-256ba92e24b5"
+    }
   }
 }

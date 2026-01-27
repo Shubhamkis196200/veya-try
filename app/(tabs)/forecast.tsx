@@ -1,11 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { format, addDays, startOfWeek, addWeeks } from 'date-fns';
-import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+import Animated, { 
+  FadeIn, 
+  FadeInDown, 
+  FadeInUp,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  withSequence,
+  interpolate,
+  Easing,
+} from 'react-native-reanimated';
 import { COLORS, FONTS, SPACING, RADIUS, ANIMATION, darkTheme } from '../../src/constants/theme';
+import { StarField } from '../../src/components';
 
 const { width } = Dimensions.get('window');
 
@@ -40,9 +53,51 @@ const monthlyOverview = {
 export default function ForecastScreen() {
   const [activeTab, setActiveTab] = useState<'weekly' | 'monthly'>('weekly');
   const [selectedDay, setSelectedDay] = useState(0);
+  
+  // Animations
+  const tabIndicatorPosition = useSharedValue(0);
+  const cardScale = useSharedValue(1);
+  const energyBarWidth = useSharedValue(0);
+  
+  useEffect(() => {
+    // Animate energy bar on mount
+    energyBarWidth.value = withSpring(weeklyForecast[selectedDay].energy / 100, {
+      damping: 15,
+      stiffness: 100,
+    });
+  }, [selectedDay]);
+  
+  const handleTabChange = (tab: 'weekly' | 'monthly') => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    tabIndicatorPosition.value = withSpring(tab === 'weekly' ? 0 : 1, {
+      damping: 15,
+      stiffness: 120,
+    });
+    setActiveTab(tab);
+  };
+  
+  const handleDaySelect = (index: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    cardScale.value = withSequence(
+      withTiming(0.98, { duration: 100 }),
+      withSpring(1, { damping: 12 })
+    );
+    setSelectedDay(index);
+  };
+  
+  const tabIndicatorStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: interpolate(tabIndicatorPosition.value, [0, 1], [0, (Dimensions.get('window').width - SPACING.lg * 2 - 8) / 2]) }],
+  }));
+  
+  const dayCardAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: cardScale.value }],
+  }));
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <LinearGradient colors={COLORS.gradientCosmic as [string, string, ...string[]]} style={StyleSheet.absoluteFill} />
+      <StarField starCount={25} />
+      
       <ScrollView 
         style={styles.scrollView} 
         contentContainerStyle={styles.content}
@@ -54,19 +109,20 @@ export default function ForecastScreen() {
           <Text style={styles.subtitle}>Your cosmic outlook</Text>
         </Animated.View>
 
-        {/* Tab Switcher */}
+        {/* Tab Switcher with animated indicator */}
         <Animated.View entering={FadeIn.delay(100)} style={styles.tabContainer}>
+          <Animated.View style={[styles.tabIndicator, tabIndicatorStyle]} />
           <TouchableOpacity 
-            style={[styles.tab, activeTab === 'weekly' && styles.tabActive]}
-            onPress={() => setActiveTab('weekly')}
+            style={styles.tab}
+            onPress={() => handleTabChange('weekly')}
           >
             <Text style={[styles.tabText, activeTab === 'weekly' && styles.tabTextActive]}>
               This Week
             </Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[styles.tab, activeTab === 'monthly' && styles.tabActive]}
-            onPress={() => setActiveTab('monthly')}
+            style={styles.tab}
+            onPress={() => handleTabChange('monthly')}
           >
             <Text style={[styles.tabText, activeTab === 'monthly' && styles.tabTextActive]}>
               This Month
@@ -84,39 +140,43 @@ export default function ForecastScreen() {
               contentContainerStyle={styles.weekStripContent}
             >
               {weeklyForecast.map((day, index) => (
-                <TouchableOpacity
+                <Animated.View 
                   key={index}
-                  style={[
-                    styles.dayCard,
-                    selectedDay === index && styles.dayCardActive
-                  ]}
-                  onPress={() => setSelectedDay(index)}
+                  entering={FadeInDown.delay(150 + index * 50).springify()}
                 >
-                  <Text style={[styles.dayName, selectedDay === index && styles.dayNameActive]}>
-                    {day.day}
-                  </Text>
-                  <Text style={[styles.dayDate, selectedDay === index && styles.dayDateActive]}>
-                    {day.date}
-                  </Text>
-                  <Text style={styles.dayMood}>{day.mood}</Text>
-                  <View style={styles.energyDot}>
-                    <View 
-                      style={[
-                        styles.energyDotFill, 
-                        { 
-                          height: `${day.energy}%`,
-                          backgroundColor: day.energy > 75 ? COLORS.success : 
-                                          day.energy > 60 ? COLORS.primary : COLORS.warning
-                        }
-                      ]} 
-                    />
-                  </View>
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.dayCard,
+                      selectedDay === index && styles.dayCardActive
+                    ]}
+                    onPress={() => handleDaySelect(index)}
+                  >
+                    <Text style={[styles.dayName, selectedDay === index && styles.dayNameActive]}>
+                      {day.day}
+                    </Text>
+                    <Text style={[styles.dayDate, selectedDay === index && styles.dayDateActive]}>
+                      {day.date}
+                    </Text>
+                    <Text style={styles.dayMood}>{day.mood}</Text>
+                    <View style={styles.energyDot}>
+                      <View 
+                        style={[
+                          styles.energyDotFill, 
+                          { 
+                            height: `${day.energy}%`,
+                            backgroundColor: day.energy > 75 ? COLORS.success : 
+                                            day.energy > 60 ? COLORS.primary : COLORS.warning
+                          }
+                        ]} 
+                      />
+                    </View>
+                  </TouchableOpacity>
+                </Animated.View>
               ))}
             </ScrollView>
 
             {/* Selected Day Details */}
-            <View style={styles.dayDetails}>
+            <Animated.View style={[styles.dayDetails, dayCardAnimStyle]}>
               <LinearGradient
                 colors={['rgba(201, 169, 98, 0.1)', 'rgba(139, 126, 200, 0.05)']}
                 start={{ x: 0, y: 0 }}
@@ -158,10 +218,10 @@ export default function ForecastScreen() {
                   </View>
                 </View>
               </LinearGradient>
-            </View>
+            </Animated.View>
 
             {/* Weekly Tips */}
-            <View style={styles.section}>
+            <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.section}>
               <Text style={styles.sectionTitle}>WEEKLY GUIDANCE</Text>
               
               <View style={styles.tipCard}>
@@ -193,12 +253,12 @@ export default function ForecastScreen() {
                   <Text style={styles.tipText}>Thursday favors heart-to-heart talks</Text>
                 </View>
               </View>
-            </View>
+            </Animated.View>
           </>
         ) : (
           <>
             {/* Monthly Theme Card */}
-            <View style={styles.monthCard}>
+            <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.monthCard}>
               <LinearGradient
                 colors={['#1A1A2E', '#16161F']}
                 style={styles.monthCardGradient}
@@ -207,13 +267,17 @@ export default function ForecastScreen() {
                 <Text style={styles.monthTheme}>{monthlyOverview.theme}</Text>
                 <Text style={styles.monthOverview}>{monthlyOverview.overview}</Text>
               </LinearGradient>
-            </View>
+            </Animated.View>
 
             {/* Key Dates */}
-            <View style={styles.section}>
+            <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.section}>
               <Text style={styles.sectionTitle}>KEY DATES</Text>
               {monthlyOverview.keyDates.map((item, index) => (
-                <View key={index} style={styles.dateCard}>
+                <Animated.View 
+                  key={index} 
+                  entering={FadeInDown.delay(250 + index * 60).springify()}
+                  style={styles.dateCard}
+                >
                   <View style={[
                     styles.dateIcon,
                     { backgroundColor: item.type === 'moon' ? COLORS.celestial.moon + '20' : COLORS.celestial.venus + '20' }
@@ -229,16 +293,20 @@ export default function ForecastScreen() {
                     <Text style={styles.dateEvent}>{item.event}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
-                </View>
+                </Animated.View>
               ))}
-            </View>
+            </Animated.View>
 
             {/* Monthly Areas */}
-            <View style={styles.section}>
+            <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.section}>
               <Text style={styles.sectionTitle}>LIFE AREAS</Text>
               <View style={styles.areasGrid}>
                 {monthlyOverview.areas.map((area, index) => (
-                  <View key={index} style={styles.areaCard}>
+                  <Animated.View 
+                    key={index} 
+                    entering={FadeInDown.delay(450 + index * 80).springify()}
+                    style={styles.areaCard}
+                  >
                     <View style={styles.areaHeader}>
                       <Text style={styles.areaName}>{area.name}</Text>
                       <Ionicons 
@@ -260,10 +328,10 @@ export default function ForecastScreen() {
                         ]} 
                       />
                     </View>
-                  </View>
+                  </Animated.View>
                 ))}
               </View>
-            </View>
+            </Animated.View>
           </>
         )}
       </ScrollView>
@@ -274,7 +342,7 @@ export default function ForecastScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   scrollView: { flex: 1 },
-  content: { paddingBottom: 100 },
+  content: { paddingBottom: 160 },
   header: { padding: SPACING.lg, paddingBottom: SPACING.md },
   title: { ...FONTS.h1, color: COLORS.textPrimary },
   subtitle: { ...FONTS.body, color: COLORS.textMuted, marginTop: SPACING.xs },
@@ -303,6 +371,15 @@ const styles = StyleSheet.create({
   },
   tabTextActive: {
     color: COLORS.textInverse,
+  },
+  tabIndicator: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    width: (Dimensions.get('window').width - SPACING.lg * 2 - 8) / 2,
+    height: '100%',
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.md,
   },
 
   // Week Strip

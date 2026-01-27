@@ -1,23 +1,24 @@
 import { useEffect } from 'react';
+import { View, Text } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as SplashScreen from 'expo-splash-screen';
-import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
-import { ThemeProvider, useTheme } from '../src/contexts/ThemeContext';
 
 SplashScreen.preventAutoHideAsync();
 
-function RootLayoutNav() {
-  const { isDark, colors } = useTheme();
-  
+export default function RootLayout() {
+  useEffect(() => {
+    SplashScreen.hideAsync();
+  }, []);
+
   return (
-    <>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <StatusBar style="light" />
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: colors.background },
+          contentStyle: { backgroundColor: '#0A0A1A' },
           animation: 'slide_from_right',
         }}
       >
@@ -29,34 +30,8 @@ function RootLayoutNav() {
         <Stack.Screen name="features/journal" options={{ presentation: 'modal' }} />
         <Stack.Screen name="features/moon" options={{ presentation: 'modal' }} />
         <Stack.Screen name="features/tarot" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="features/friends" options={{ presentation: 'modal' }} />
       </Stack>
-    </>
-  );
-}
-
-export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
-    Poppins_400Regular,
-    Poppins_500Medium,
-    Poppins_600SemiBold,
-    Poppins_700Bold,
-  });
-
-  useEffect(() => {
-    if (fontsLoaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded]);
-
-  if (!fontsLoaded) {
-    return null;
-  }
-
-  return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider>
-        <RootLayoutNav />
-      </ThemeProvider>
     </GestureHandlerRootView>
   );
 }

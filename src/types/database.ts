@@ -134,9 +134,13 @@ export interface Profile {
   dob: string | null;
   birth_time: string | null;
   birth_place: string | null;
+  birth_location?: string | null;  // Alias for birth_place (used in some components)
   fortune_method: string | null;
   intent: string | null;
   zodiac_sign: string | null;
+  element?: string | null;  // Fire, Earth, Air, Water
+  moon_sign?: string | null;
+  rising_sign?: string | null;
   created_at: string;
   updated_at: string;
 }
