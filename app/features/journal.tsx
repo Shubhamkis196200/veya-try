@@ -56,7 +56,7 @@ export default function JournalScreen() {
         setEntries(JSON.parse(saved));
       }
     } catch (e) {
-      console.log('Error loading entries:', e);
+      // Error loading entries - will show empty state
     }
   };
 
@@ -82,7 +82,7 @@ export default function JournalScreen() {
     try {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedEntries));
     } catch (e) {
-      console.log('Error saving entry:', e);
+      // Error saving entry - data will only persist in memory
     }
 
     // Reset form

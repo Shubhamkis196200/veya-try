@@ -24,7 +24,7 @@ class SoundManager {
         staysActiveInBackground: false,
       });
     } catch (e) {
-      console.log('Audio setup error:', e);
+      // Audio setup error - sounds will be disabled
     }
   }
 
@@ -52,7 +52,7 @@ class SoundManager {
         }
       });
     } catch (e) {
-      console.log('Sound play error:', e);
+      // Sound play error - silent failure is acceptable
     }
   }
 

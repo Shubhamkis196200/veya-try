@@ -129,7 +129,7 @@ export default function AffirmationsScreen() {
         message: `✨ ${currentAffirmation}\n\n— Sent from Veya`,
       });
     } catch (error) {
-      console.log(error);
+      // Share failed
     }
   };
 

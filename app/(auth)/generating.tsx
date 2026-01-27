@@ -92,7 +92,7 @@ export default function GeneratingScreen() {
           sun_sign: zodiacSign?.toLowerCase(),
         });
       } catch (e) {
-        console.log('Profile update skipped:', e);
+        // Profile update skipped
       }
 
       clearOnboardingData();

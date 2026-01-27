@@ -116,7 +116,6 @@ export async function getAIReading(request: ReadingRequest): Promise<ReadingResp
     throw new Error('Edge function not available');
   } catch (error) {
     // Return mock reading as fallback
-    console.log('Using mock reading:', error);
     return getMockReading(request);
   }
 }

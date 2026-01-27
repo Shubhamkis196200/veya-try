@@ -32,7 +32,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         setThemeModeState(saved as ThemeMode);
       }
     } catch (error) {
-      console.log('Error loading theme:', error);
+      // Error loading theme - will use system default
     }
     setIsLoaded(true);
   };
@@ -42,7 +42,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     try {
       await AsyncStorage.setItem(THEME_STORAGE_KEY, mode);
     } catch (error) {
-      console.log('Error saving theme:', error);
+      // Error saving theme - will revert on app restart
     }
   };
 

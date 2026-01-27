@@ -17,7 +17,7 @@ Notifications.setNotificationHandler({
 // Register for push notifications
 export async function registerForPushNotifications(): Promise<string | null> {
   if (!Device.isDevice) {
-    console.log('Push notifications require a physical device');
+    // Push notifications require a physical device
     return null;
   }
 
@@ -32,7 +32,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
   }
 
   if (finalStatus !== 'granted') {
-    console.log('Push notification permission not granted');
+    // Push notification permission not granted
     return null;
   }
 
@@ -85,8 +85,6 @@ export async function scheduleDailyHoroscope(hour: number = 8, minute: number = 
       minute,
     },
   });
-
-  console.log(`Daily horoscope scheduled for ${hour}:${minute}`);
 }
 
 // Schedule moon phase notification
