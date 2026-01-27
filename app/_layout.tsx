@@ -1,55 +1,41 @@
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { COLORS } from '../src/constants/theme';
+import { ThemeProvider, useTheme } from '../src/contexts/ThemeContext';
 import { useAuthStore } from '../src/stores';
 
-export default function RootLayout() {
-  const initialize = useAuthStore((s) => s.initialize);
+function RootLayoutContent() {
+  const { theme, isDark } = useTheme();
+  const initialize = useAuthStore((state) => state.initialize);
 
   useEffect(() => {
     initialize();
   }, []);
 
   return (
-    <GestureHandlerRootView style={styles.container}>
+    <>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: theme.colors.background },
+          animation: 'fade',
+        }}
+      />
+    </>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <StatusBar style="light" />
-        <View style={styles.background}>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: 'transparent' },
-              animation: 'fade',
-              animationDuration: 300,
-            }}
-          >
-            <Stack.Screen name="index" />
-            <Stack.Screen 
-              name="(auth)" 
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen 
-              name="(tabs)" 
-              options={{ animation: 'fade' }}
-            />
-          </Stack>
-        </View>
+        <ThemeProvider>
+          <RootLayoutContent />
+        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  background: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-});
