@@ -4,8 +4,25 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { 
+  FadeIn, 
+  FadeInDown, 
+  FadeInUp,
+  useSharedValue, 
+  useAnimatedStyle, 
+  withSpring,
+  withRepeat,
+  withSequence,
+  Easing,
+  withTiming
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { COLORS, FONTS, SPACING, RADIUS, INTENTS } from '../../src/constants/theme';
 import { useAuthStore, useAppStore } from '../../src/stores';
+
+const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
+const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 
 // Mock daily insight for demo
 const mockInsight = {
@@ -33,6 +50,36 @@ export default function TodayScreen() {
   const today = new Date();
   const dateString = format(today, 'EEEE, MMMM d');
   
+  // Animations
+  const glowOpacity = useSharedValue(0.3);
+  const energyScale = useSharedValue(0);
+
+  useEffect(() => {
+    // Pulsing glow effect
+    glowOpacity.value = withRepeat(
+      withSequence(
+        withTiming(0.6, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.3, { duration: 2000, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      false
+    );
+
+    // Energy bar animation
+    energyScale.value = withSpring(1, {
+      damping: 15,
+      stiffness: 100,
+    });
+  }, []);
+
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: glowOpacity.value,
+  }));
+
+  const energyStyle = useAnimatedStyle(() => ({
+    transform: [{ scaleX: energyScale.value }],
+  }));
+  
   const getGreeting = () => {
     const hour = today.getHours();
     if (hour < 12) return 'Good morning';
@@ -46,7 +93,13 @@ export default function TodayScreen() {
 
   const onRefresh = () => {
     setRefreshing(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setTimeout(() => setRefreshing(false), 1000);
+  };
+
+  const handlePress = (action: () => void) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    action();
   };
 
   return (
