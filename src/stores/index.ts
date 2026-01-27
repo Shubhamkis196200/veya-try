@@ -1,126 +1,299 @@
 import { create } from 'zustand';
-import { supabase, getProfile } from '../lib/supabase';
-import type { Profile, DailyInsight, ChatMessage } from '../types';
-import type { User } from '@supabase/supabase-js';
+import { supabase, auth, db } from '../lib/supabase';
+import { User, Session } from '@supabase/supabase-js';
 
+// Profile type
+interface Profile {
+  id: string;
+  email?: string;
+  name?: string;
+  birth_date?: string;
+  birth_time?: string;
+  birth_place?: string;
+  dob?: string;
+  sun_sign?: string;
+  moon_sign?: string;
+  rising_sign?: string;
+  zodiac_sign?: string;
+  intent?: string;
+  fortune_method?: string;
+  notifications_enabled?: boolean;
+  premium?: boolean;
+}
+
+// Auth Store
 interface AuthState {
   user: User | null;
+  session: Session | null;
   profile: Profile | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   
   // Actions
-  setUser: (user: User | null) => void;
-  setProfile: (profile: Profile | null) => void;
-  setLoading: (loading: boolean) => void;
-  signOut: () => Promise<void>;
-  refreshProfile: () => Promise<void>;
   initialize: () => Promise<void>;
+  signUp: (email: string, password: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signOut: () => Promise<void>;
+  updateProfile: (updates: Partial<Profile>) => Promise<{ error: any }>;
+  setProfile: (profile: Profile | null) => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
+  session: null,
   profile: null,
   isLoading: true,
   isAuthenticated: false,
-  
-  setUser: (user) => set({ user, isAuthenticated: !!user }),
-  setProfile: (profile) => set({ profile }),
-  setLoading: (isLoading) => set({ isLoading }),
-  
-  signOut: async () => {
-    await supabase.auth.signOut();
-    set({ user: null, profile: null, isAuthenticated: false });
-  },
-  
-  refreshProfile: async () => {
-    const { user } = get();
-    if (!user) return;
-    
-    try {
-      const profile = await getProfile(user.id);
-      set({ profile });
-    } catch (error) {
-      console.error('Failed to refresh profile:', error);
-    }
-  },
-  
+
   initialize: async () => {
-    set({ isLoading: true });
-    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const session = await auth.getSession();
       
-      if (user) {
-        const profile = await getProfile(user.id);
-        set({ user, profile, isAuthenticated: true });
+      if (session?.user) {
+        const { data: profile } = await db.profiles.get(session.user.id);
+        
+        set({
+          user: session.user,
+          session,
+          profile,
+          isAuthenticated: true,
+          isLoading: false,
+        });
+      } else {
+        set({ isLoading: false });
       }
+
+      // Listen for auth changes
+      auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          const { data: profile } = await db.profiles.get(session.user.id);
+          set({
+            user: session.user,
+            session,
+            profile,
+            isAuthenticated: true,
+          });
+        } else if (event === 'SIGNED_OUT') {
+          set({
+            user: null,
+            session: null,
+            profile: null,
+            isAuthenticated: false,
+          });
+        }
+      });
     } catch (error) {
-      console.error('Auth initialization error:', error);
-    } finally {
+      console.error('Auth init error:', error);
       set({ isLoading: false });
     }
   },
+
+  signUp: async (email, password) => {
+    const { data, error } = await auth.signUp(email, password);
+    if (!error && data.user) {
+      set({ user: data.user, session: data.session, isAuthenticated: true });
+    }
+    return { error };
+  },
+
+  signIn: async (email, password) => {
+    const { data, error } = await auth.signIn(email, password);
+    if (!error && data.user) {
+      const { data: profile } = await db.profiles.get(data.user.id);
+      set({ 
+        user: data.user, 
+        session: data.session, 
+        profile,
+        isAuthenticated: true 
+      });
+    }
+    return { error };
+  },
+
+  signOut: async () => {
+    await auth.signOut();
+    set({ user: null, session: null, profile: null, isAuthenticated: false });
+  },
+
+  updateProfile: async (updates) => {
+    const { user } = get();
+    if (!user) return { error: 'Not authenticated' };
+
+    const { data, error } = await db.profiles.update(user.id, updates);
+    if (!error && data) {
+      set({ profile: data });
+    }
+    return { error };
+  },
+
+  setProfile: (profile) => set({ profile }),
 }));
 
-// App State Store
+// Journal Store
+interface JournalEntry {
+  id: string;
+  user_id: string;
+  date: string;
+  mood: string;
+  mood_emoji: string;
+  energy: number;
+  gratitude: string;
+  reflection: string;
+  moon_phase?: string;
+  created_at: string;
+}
+
+interface JournalState {
+  entries: JournalEntry[];
+  isLoading: boolean;
+  
+  loadEntries: () => Promise<void>;
+  addEntry: (entry: Omit<JournalEntry, 'id' | 'user_id' | 'created_at'>) => Promise<{ error: any }>;
+  deleteEntry: (id: string) => Promise<{ error: any }>;
+}
+
+export const useJournalStore = create<JournalState>((set, get) => ({
+  entries: [],
+  isLoading: false,
+
+  loadEntries: async () => {
+    const user = useAuthStore.getState().user;
+    if (!user) return;
+
+    set({ isLoading: true });
+    const { data, error } = await db.journal.list(user.id);
+    
+    if (!error && data) {
+      set({ entries: data });
+    }
+    set({ isLoading: false });
+  },
+
+  addEntry: async (entry) => {
+    const user = useAuthStore.getState().user;
+    if (!user) return { error: 'Not authenticated' };
+
+    const { data, error } = await db.journal.create({
+      ...entry,
+      user_id: user.id,
+    });
+
+    if (!error && data) {
+      set({ entries: [data, ...get().entries] });
+    }
+    return { error };
+  },
+
+  deleteEntry: async (id) => {
+    const { error } = await db.journal.delete(id);
+    if (!error) {
+      set({ entries: get().entries.filter(e => e.id !== id) });
+    }
+    return { error };
+  },
+}));
+
+// App Store (UI state, daily insights, etc)
+interface OnboardingData {
+  intent?: string;
+  fortune_method?: string;
+  method?: string;
+  birth_date?: string;
+  birth_time?: string;
+  birth_place?: string;
+  name?: string;
+  dob?: string;
+}
+
 interface AppState {
-  // Daily insight
-  dailyInsight: DailyInsight | null;
-  setDailyInsight: (insight: DailyInsight | null) => void;
-  
-  // Chat
-  chatMessages: ChatMessage[];
-  addChatMessage: (message: ChatMessage) => void;
-  setChatMessages: (messages: ChatMessage[]) => void;
-  
-  // Onboarding state (temporary)
-  onboardingData: {
-    intent: string | null;
-    method: string | null;
-    name: string | null;
-    dob: string | null;
-    birth_time: string | null;
-    birth_place: string | null;
-  };
-  setOnboardingData: (data: Partial<AppState['onboardingData']>) => void;
-  clearOnboardingData: () => void;
-  
-  // UI State
+  dailyInsight: any | null;
   isGenerating: boolean;
-  setIsGenerating: (generating: boolean) => void;
+  hasCompletedOnboarding: boolean;
+  onboardingData: OnboardingData;
+  
+  setDailyInsight: (insight: any) => void;
+  setIsGenerating: (value: boolean) => void;
+  setHasCompletedOnboarding: (value: boolean) => void;
+  setOnboardingData: (data: Partial<OnboardingData>) => void;
+  clearOnboardingData: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
   dailyInsight: null,
-  setDailyInsight: (dailyInsight) => set({ dailyInsight }),
-  
-  chatMessages: [],
-  addChatMessage: (message) => set({ chatMessages: [...get().chatMessages, message] }),
-  setChatMessages: (chatMessages) => set({ chatMessages }),
-  
-  onboardingData: {
-    intent: null,
-    method: null,
-    name: null,
-    dob: null,
-    birth_time: null,
-    birth_place: null,
-  },
-  setOnboardingData: (data) => set({ 
-    onboardingData: { ...get().onboardingData, ...data } 
-  }),
-  clearOnboardingData: () => set({
-    onboardingData: {
-      intent: null,
-      method: null,
-      name: null,
-      dob: null,
-      birth_time: null,
-      birth_place: null,
-    }
-  }),
-  
   isGenerating: false,
-  setIsGenerating: (isGenerating) => set({ isGenerating }),
+  hasCompletedOnboarding: false,
+  onboardingData: {},
+
+  setDailyInsight: (insight) => set({ dailyInsight: insight }),
+  setIsGenerating: (value) => set({ isGenerating: value }),
+  setHasCompletedOnboarding: (value) => set({ hasCompletedOnboarding: value }),
+  setOnboardingData: (data) => set({ onboardingData: { ...get().onboardingData, ...data } }),
+  clearOnboardingData: () => set({ onboardingData: {} }),
+}));
+
+// Favorites Store
+interface Favorite {
+  id: string;
+  user_id: string;
+  type: string;
+  content: any;
+  created_at: string;
+}
+
+interface FavoritesState {
+  favorites: Favorite[];
+  isLoading: boolean;
+  
+  loadFavorites: (type?: string) => Promise<void>;
+  addFavorite: (type: string, content: any) => Promise<{ error: any }>;
+  removeFavorite: (id: string) => Promise<{ error: any }>;
+  isFavorite: (type: string, contentId: string) => boolean;
+}
+
+export const useFavoritesStore = create<FavoritesState>((set, get) => ({
+  favorites: [],
+  isLoading: false,
+
+  loadFavorites: async (type) => {
+    const user = useAuthStore.getState().user;
+    if (!user) return;
+
+    set({ isLoading: true });
+    const { data, error } = await db.favorites.list(user.id, type);
+    
+    if (!error && data) {
+      set({ favorites: data });
+    }
+    set({ isLoading: false });
+  },
+
+  addFavorite: async (type, content) => {
+    const user = useAuthStore.getState().user;
+    if (!user) return { error: 'Not authenticated' };
+
+    const { data, error } = await db.favorites.add({
+      user_id: user.id,
+      type,
+      content,
+    });
+
+    if (!error && data) {
+      set({ favorites: [data, ...get().favorites] });
+    }
+    return { error };
+  },
+
+  removeFavorite: async (id) => {
+    const { error } = await db.favorites.remove(id);
+    if (!error) {
+      set({ favorites: get().favorites.filter(f => f.id !== id) });
+    }
+    return { error };
+  },
+
+  isFavorite: (type, contentId) => {
+    return get().favorites.some(
+      f => f.type === type && f.content?.id === contentId
+    );
+  },
 }));

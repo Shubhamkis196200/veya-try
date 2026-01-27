@@ -30,8 +30,8 @@ export default function DataInputScreen() {
     setOnboardingData({
       name: name.trim(),
       dob,
-      birth_time: birthTime || null,
-      birth_place: birthPlace || null,
+      birth_time: birthTime || undefined,
+      birth_place: birthPlace || undefined,
     });
     
     router.push('/(auth)/generating');
