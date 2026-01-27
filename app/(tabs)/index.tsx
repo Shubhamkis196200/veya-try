@@ -1,5 +1,9 @@
-import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
+/**
+ * HOME SCREEN - REDESIGNED
+ * 3 key cards, real data, energy meter, clean layout
+ */
+import { useEffect, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,547 +12,423 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { 
   FadeIn, 
   FadeInDown, 
-  FadeInUp,
   useSharedValue, 
   useAnimatedStyle, 
   withSpring,
-  withRepeat,
-  withSequence,
-  Easing,
-  withTiming
+  withTiming,
+  interpolate,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { COLORS, FONTS, SPACING, RADIUS, INTENTS } from '../../src/constants/theme';
+import { useTheme } from '../../src/hooks/useTheme';
 import { useAuthStore, useAppStore } from '../../src/stores';
+import { getDailyReading } from '../../src/services/ai';
+import { HomeSkeleton, Skeleton } from '../../src/components/LoadingSkeleton';
+import { StarField } from '../../src/components';
+
+const { width } = Dimensions.get('window');
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
-const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 
-// Mock daily insight for demo
-const mockInsight = {
-  theme: 'Inner Clarity',
-  energy_summary: 'Today brings a wave of mental clarity and emotional balance. The cosmic energies favor introspection and meaningful conversations.',
-  do_list: ['Trust your intuition', 'Connect with loved ones', 'Start a creative project'],
-  avoid_list: ['Impulsive decisions', 'Overcommitting your time'],
-  lucky_color: 'Gold',
-  lucky_number: 7,
-  lucky_time: '3:00 PM',
-  gem_name: 'Citrine',
-  gem_reason: 'Enhances clarity and positive energy',
-  focus_area: 'Focus on nurturing your most important relationships today. A heartfelt conversation could strengthen bonds.',
-  energy_level: 78,
-};
+// Quick action buttons
+const QUICK_ACTIONS = [
+  { key: 'chat', icon: 'chatbubble-ellipses', label: 'Ask Veya', route: '/(tabs)/chat', color: '#A855F7' },
+  { key: 'tarot', icon: 'layers', label: 'Tarot', route: '/features/tarot', color: '#F59E0B' },
+  { key: 'moon', icon: 'moon', label: 'Moon', route: '/features/moon', color: '#60A5FA' },
+];
 
-export default function TodayScreen() {
+export default function HomeScreen() {
   const router = useRouter();
+  const { colors, spacing, radius, text, card } = useTheme();
   const { profile } = useAuthStore();
   const { dailyInsight, setDailyInsight } = useAppStore();
   
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [insight, setInsight] = useState(mockInsight);
-
-  const today = new Date();
-  const dateString = format(today, 'EEEE, MMMM d');
+  const [reading, setReading] = useState<any>(null);
   
-  // Animations
-  const glowOpacity = useSharedValue(0.3);
-  const energyScale = useSharedValue(0);
-
-  useEffect(() => {
-    // Pulsing glow effect
-    glowOpacity.value = withRepeat(
-      withSequence(
-        withTiming(0.6, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0.3, { duration: 2000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      false
-    );
-
-    // Energy bar animation
-    energyScale.value = withSpring(1, {
-      damping: 15,
-      stiffness: 100,
-    });
-  }, []);
-
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity: glowOpacity.value,
-  }));
-
-  const energyStyle = useAnimatedStyle(() => ({
-    transform: [{ scaleX: energyScale.value }],
-  }));
+  const energyWidth = useSharedValue(0);
+  const cardScale = useSharedValue(0.95);
   
-  const getGreeting = () => {
-    const hour = today.getHours();
+  const zodiacSign = profile?.sun_sign || profile?.zodiac_sign || 'Aries';
+  const userName = profile?.name?.split(' ')[0] || 'Stargazer';
+  const today = format(new Date(), 'EEEE, MMMM d');
+  const greeting = getGreeting();
+  
+  function getGreeting() {
+    const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
-  };
-
-  const intentInfo = profile?.intent 
-    ? INTENTS[profile.intent as keyof typeof INTENTS] 
-    : null;
-
-  const onRefresh = () => {
+  }
+  
+  // Fetch daily reading
+  const fetchReading = useCallback(async () => {
+    try {
+      const data = await getDailyReading(zodiacSign, profile?.intent);
+      setReading(data);
+      setDailyInsight(data);
+      
+      // Animate energy bar
+      energyWidth.value = withSpring((data.energy || 75) / 100, {
+        damping: 15,
+        stiffness: 100,
+      });
+    } catch (error) {
+      console.error('Failed to fetch reading:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [zodiacSign, profile?.intent]);
+  
+  useEffect(() => {
+    fetchReading();
+    cardScale.value = withSpring(1, { damping: 12 });
+  }, []);
+  
+  const onRefresh = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRefreshing(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setTimeout(() => setRefreshing(false), 1000);
-  };
-
-  const handlePress = (action: () => void) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    action();
-  };
-
+    fetchReading();
+  }, [fetchReading]);
+  
+  const energyStyle = useAnimatedStyle(() => ({
+    width: `${energyWidth.value * 100}%`,
+  }));
+  
+  const cardAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: cardScale.value }],
+  }));
+  
+  if (loading) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.bg.primary }]}>
+        <LinearGradient colors={colors.gradient.cosmic} style={StyleSheet.absoluteFill} />
+        <SafeAreaView style={styles.safe}>
+          <HomeSkeleton />
+        </SafeAreaView>
+      </View>
+    );
+  }
+  
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
-        }
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>{getGreeting()}</Text>
-            <Text style={styles.date}>{dateString}</Text>
-          </View>
-          <TouchableOpacity style={styles.avatar} onPress={() => router.push('/(tabs)/profile')}>
-            <Text style={styles.avatarText}>
-              {(profile?.name?.[0] || 'V').toUpperCase()}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Hero Card */}
-        <View style={styles.heroCard}>
-          <View style={styles.heroHeader}>
-            <Text style={styles.overline}>TODAY'S THEME</Text>
-            {intentInfo && (
-              <View style={[styles.badge, { backgroundColor: intentInfo.color + '20' }]}>
-                <Ionicons name={intentInfo.icon as any} size={12} color={intentInfo.color} />
-                <Text style={[styles.badgeText, { color: intentInfo.color }]}>
-                  {intentInfo.title.split(' ')[0]}
-                </Text>
-              </View>
-            )}
-          </View>
-          <Text style={styles.heroTitle}>{insight.theme}</Text>
-          <Text style={styles.heroSummary}>{insight.energy_summary}</Text>
-          
-          {/* Energy Bar */}
-          <View style={styles.energySection}>
-            <View style={styles.energyHeader}>
-              <Text style={styles.energyLabel}>Overall Energy</Text>
-              <Text style={styles.energyValue}>{insight.energy_level}%</Text>
-            </View>
-            <View style={styles.energyTrack}>
-              <View style={[styles.energyFill, { width: `${insight.energy_level}%` }]} />
-            </View>
-          </View>
-        </View>
-
-        {/* Quick Stats */}
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          style={styles.statsScroll}
-          contentContainerStyle={styles.statsContainer}
+    <View style={[styles.container, { backgroundColor: colors.bg.primary }]}>
+      <LinearGradient colors={colors.gradient.cosmic} style={StyleSheet.absoluteFill} />
+      <StarField starCount={30} />
+      
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+            />
+          }
         >
-          <View style={styles.statBadge}>
-            <Ionicons name="color-palette" size={18} color={COLORS.celestial.venus} />
-            <Text style={styles.statLabel}>Color</Text>
-            <Text style={styles.statValue}>{insight.lucky_color}</Text>
-          </View>
-          <View style={styles.statBadge}>
-            <Ionicons name="star" size={18} color={COLORS.celestial.jupiter} />
-            <Text style={styles.statLabel}>Number</Text>
-            <Text style={styles.statValue}>{insight.lucky_number}</Text>
-          </View>
-          <View style={styles.statBadge}>
-            <Ionicons name="time" size={18} color={COLORS.celestial.mercury} />
-            <Text style={styles.statLabel}>Best Time</Text>
-            <Text style={styles.statValue}>{insight.lucky_time}</Text>
-          </View>
-          <View style={styles.statBadge}>
-            <Ionicons name="diamond" size={18} color={COLORS.primary} />
-            <Text style={styles.statLabel}>Gem</Text>
-            <Text style={styles.statValue}>{insight.gem_name}</Text>
-          </View>
+          {/* Header */}
+          <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
+            <Text style={[styles.greeting, { color: colors.text.secondary }]}>
+              {greeting}, {userName} ✨
+            </Text>
+            <Text style={[styles.date, { color: colors.text.primary }]}>
+              {today}
+            </Text>
+          </Animated.View>
+          
+          {/* Main Reading Card */}
+          <Animated.View style={cardAnimStyle}>
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                router.push('/(tabs)/forecast');
+              }}
+            >
+              <LinearGradient
+                colors={[colors.bg.elevated, colors.bg.tertiary]}
+                style={[styles.mainCard, { borderColor: colors.border.accent }]}
+              >
+                {/* Theme Badge */}
+                <View style={[styles.themeBadge, { backgroundColor: colors.primaryMuted }]}>
+                  <Ionicons name="sparkles" size={14} color={colors.primary} />
+                  <Text style={[styles.themeText, { color: colors.primary }]}>
+                    {reading?.theme || "Today's Energy"}
+                  </Text>
+                </View>
+                
+                {/* Reading Text */}
+                <Text style={[styles.readingText, { color: colors.text.primary }]}>
+                  {reading?.reading || "The universe has a message for you..."}
+                </Text>
+                
+                {/* Energy Meter */}
+                <View style={styles.energyContainer}>
+                  <View style={styles.energyHeader}>
+                    <Text style={[styles.energyLabel, { color: colors.text.secondary }]}>
+                      Cosmic Energy
+                    </Text>
+                    <Text style={[styles.energyValue, { color: colors.accent }]}>
+                      {reading?.energy || 75}%
+                    </Text>
+                  </View>
+                  <View style={[styles.energyBar, { backgroundColor: colors.bg.muted }]}>
+                    <Animated.View 
+                      style={[
+                        styles.energyFill,
+                        energyStyle,
+                        { backgroundColor: colors.accent }
+                      ]} 
+                    />
+                  </View>
+                </View>
+                
+                {/* Lucky Items */}
+                <View style={styles.luckyRow}>
+                  <View style={styles.luckyItem}>
+                    <Ionicons name="color-palette" size={16} color={colors.text.muted} />
+                    <Text style={[styles.luckyText, { color: colors.text.secondary }]}>
+                      {reading?.luckyColor || 'Gold'}
+                    </Text>
+                  </View>
+                  <View style={styles.luckyItem}>
+                    <Ionicons name="star" size={16} color={colors.text.muted} />
+                    <Text style={[styles.luckyText, { color: colors.text.secondary }]}>
+                      {reading?.luckyNumber || 7}
+                    </Text>
+                  </View>
+                  <View style={styles.luckyItem}>
+                    <Ionicons name="time" size={16} color={colors.text.muted} />
+                    <Text style={[styles.luckyText, { color: colors.text.secondary }]}>
+                      {reading?.luckyTime || '3:33 PM'}
+                    </Text>
+                  </View>
+                </View>
+                
+                {/* Tap hint */}
+                <View style={styles.tapHint}>
+                  <Text style={[styles.tapText, { color: colors.text.muted }]}>
+                    Tap for full forecast →
+                  </Text>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          </Animated.View>
+          
+          {/* Quick Actions */}
+          <Animated.View entering={FadeInDown.delay(200).duration(400)} style={styles.actionsContainer}>
+            {QUICK_ACTIONS.map((action, index) => (
+              <AnimatedTouchable
+                key={action.key}
+                entering={FadeInDown.delay(300 + index * 100)}
+                style={[styles.actionButton, { backgroundColor: colors.bg.elevated }]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push(action.route as any);
+                }}
+              >
+                <View style={[styles.actionIcon, { backgroundColor: action.color + '20' }]}>
+                  <Ionicons name={action.icon as any} size={24} color={action.color} />
+                </View>
+                <Text style={[styles.actionLabel, { color: colors.text.primary }]}>
+                  {action.label}
+                </Text>
+              </AnimatedTouchable>
+            ))}
+          </Animated.View>
+          
+          {/* Do & Avoid Cards */}
+          <Animated.View entering={FadeInDown.delay(400).duration(400)} style={styles.tipsContainer}>
+            {/* Do Card */}
+            <View style={[styles.tipCard, { backgroundColor: colors.bg.elevated }]}>
+              <View style={[styles.tipHeader, { borderBottomColor: colors.border.default }]}>
+                <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                <Text style={[styles.tipTitle, { color: colors.success }]}>Embrace</Text>
+              </View>
+              <Text style={[styles.tipText, { color: colors.text.secondary }]}>
+                {reading?.do || "Trust your intuition today"}
+              </Text>
+            </View>
+            
+            {/* Avoid Card */}
+            <View style={[styles.tipCard, { backgroundColor: colors.bg.elevated }]}>
+              <View style={[styles.tipHeader, { borderBottomColor: colors.border.default }]}>
+                <Ionicons name="close-circle" size={20} color={colors.error} />
+                <Text style={[styles.tipTitle, { color: colors.error }]}>Avoid</Text>
+              </View>
+              <Text style={[styles.tipText, { color: colors.text.secondary }]}>
+                {reading?.avoid || "Overthinking decisions"}
+              </Text>
+            </View>
+          </Animated.View>
+          
+          {/* Zodiac Badge */}
+          <Animated.View entering={FadeIn.delay(600)} style={styles.zodiacContainer}>
+            <Text style={[styles.zodiacText, { color: colors.text.muted }]}>
+              ☉ {zodiacSign}
+            </Text>
+          </Animated.View>
+          
         </ScrollView>
-
-        {/* Guidance Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>DAILY GUIDANCE</Text>
-          
-          {insight.do_list.map((item, index) => (
-            <View key={`do-${index}`} style={styles.guidanceCard}>
-              <View style={[styles.guidanceIcon, { backgroundColor: COLORS.success + '15' }]}>
-                <Ionicons name="checkmark" size={18} color={COLORS.success} />
-              </View>
-              <View style={styles.guidanceContent}>
-                <Text style={styles.guidanceLabel}>Focus On</Text>
-                <Text style={styles.guidanceText}>{item}</Text>
-              </View>
-            </View>
-          ))}
-          
-          {insight.avoid_list.map((item, index) => (
-            <View key={`avoid-${index}`} style={styles.guidanceCard}>
-              <View style={[styles.guidanceIcon, { backgroundColor: COLORS.warning + '15' }]}>
-                <Ionicons name="alert" size={18} color={COLORS.warning} />
-              </View>
-              <View style={styles.guidanceContent}>
-                <Text style={styles.guidanceLabel}>Be Mindful</Text>
-                <Text style={styles.guidanceText}>{item}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-
-        {/* Focus Card */}
-        {insight.focus_area && intentInfo && (
-          <View style={styles.focusCard}>
-            <View style={[styles.focusIcon, { backgroundColor: intentInfo.color + '15' }]}>
-              <Ionicons name={intentInfo.icon as any} size={24} color={intentInfo.color} />
-            </View>
-            <View style={styles.focusContent}>
-              <Text style={styles.focusLabel}>{intentInfo.title.toUpperCase()} FOCUS</Text>
-              <Text style={styles.focusText}>{insight.focus_area}</Text>
-            </View>
-          </View>
-        )}
-
-        {/* Quick Actions */}
-        <View style={styles.actions}>
-          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/(tabs)/forecast')}>
-            <View style={[styles.actionIcon, { backgroundColor: COLORS.celestial.saturn + '15' }]}>
-              <Ionicons name="calendar" size={22} color={COLORS.celestial.saturn} />
-            </View>
-            <Text style={styles.actionTitle}>Weekly Forecast</Text>
-            <Text style={styles.actionSubtitle}>See what's ahead</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/(tabs)/chat')}>
-            <View style={[styles.actionIcon, { backgroundColor: COLORS.primary + '15' }]}>
-              <Ionicons name="chatbubble" size={22} color={COLORS.primary} />
-            </View>
-            <Text style={styles.actionTitle}>Ask Veya</Text>
-            <Text style={styles.actionSubtitle}>Get guidance</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Feature Cards */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>EXPLORE</Text>
-          <View style={styles.featureGrid}>
-            <TouchableOpacity style={styles.featureCard} onPress={() => router.push('/features/moon' as any)}>
-              <Text style={styles.featureEmoji}>🌙</Text>
-              <Text style={styles.featureTitle}>Moon Phase</Text>
-              <Text style={styles.featureSubtitle}>Lunar energy</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.featureCard} onPress={() => router.push('/features/tarot' as any)}>
-              <Text style={styles.featureEmoji}>🎴</Text>
-              <Text style={styles.featureTitle}>Daily Tarot</Text>
-              <Text style={styles.featureSubtitle}>Card reading</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.featureCard} onPress={() => router.push('/features/compatibility' as any)}>
-              <Text style={styles.featureEmoji}>💕</Text>
-              <Text style={styles.featureTitle}>Compatibility</Text>
-              <Text style={styles.featureSubtitle}>Love match</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.featureCard} onPress={() => router.push('/features/affirmations' as any)}>
-              <Text style={styles.featureEmoji}>✨</Text>
-              <Text style={styles.featureTitle}>Affirmations</Text>
-              <Text style={styles.featureSubtitle}>Daily mantras</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.featureCard} onPress={() => router.push('/features/journal' as any)}>
-              <Text style={styles.featureEmoji}>📔</Text>
-              <Text style={styles.featureTitle}>Journal</Text>
-              <Text style={styles.featureSubtitle}>Daily reflection</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.featureCard} onPress={() => router.push('/(tabs)/shop')}>
-              <Text style={styles.featureEmoji}>💎</Text>
-              <Text style={styles.featureTitle}>Gemstones</Text>
-              <Text style={styles.featureSubtitle}>Lucky stones</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
-  scrollView: {
+  safe: {
+    flex: 1,
+  },
+  scroll: {
     flex: 1,
   },
   content: {
+    padding: 20,
     paddingBottom: 100,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    padding: SPACING.lg,
+    marginBottom: 24,
   },
   greeting: {
-    ...FONTS.bodySmall,
-    color: COLORS.textMuted,
+    fontSize: 16,
+    marginBottom: 4,
   },
   date: {
-    ...FONTS.h2,
-    color: COLORS.textPrimary,
-    marginTop: 2,
+    fontSize: 28,
+    fontWeight: '700',
   },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.primaryMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    ...FONTS.bodyMedium,
-    color: COLORS.primary,
-  },
-  heroCard: {
-    marginHorizontal: SPACING.lg,
-    backgroundColor: COLORS.backgroundCard,
-    borderRadius: RADIUS.xl,
-    padding: SPACING.lg,
+  mainCard: {
+    borderRadius: 24,
+    padding: 24,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    marginBottom: 20,
   },
-  heroHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.sm,
-  },
-  overline: {
-    ...FONTS.overline,
-    color: COLORS.textMuted,
-  },
-  badge: {
+  themeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: RADIUS.full,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginBottom: 16,
+    gap: 6,
   },
-  badgeText: {
-    ...FONTS.caption,
+  themeText: {
+    fontSize: 13,
     fontWeight: '600',
-    fontSize: 10,
   },
-  heroTitle: {
-    ...FONTS.h1,
-    color: COLORS.textPrimary,
-    marginBottom: SPACING.sm,
+  readingText: {
+    fontSize: 17,
+    lineHeight: 26,
+    marginBottom: 20,
   },
-  heroSummary: {
-    ...FONTS.body,
-    color: COLORS.textSecondary,
-    lineHeight: 24,
-  },
-  energySection: {
-    marginTop: SPACING.lg,
-    paddingTop: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+  energyContainer: {
+    marginBottom: 16,
   },
   energyHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: SPACING.sm,
+    marginBottom: 8,
   },
   energyLabel: {
-    ...FONTS.bodySmall,
-    color: COLORS.textMuted,
+    fontSize: 13,
   },
   energyValue: {
-    ...FONTS.bodyMedium,
-    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: '600',
   },
-  energyTrack: {
+  energyBar: {
     height: 6,
-    backgroundColor: COLORS.border,
     borderRadius: 3,
     overflow: 'hidden',
   },
   energyFill: {
     height: '100%',
-    backgroundColor: COLORS.primary,
     borderRadius: 3,
   },
-  statsScroll: {
-    marginTop: SPACING.lg,
-  },
-  statsContainer: {
-    paddingHorizontal: SPACING.lg,
-    gap: SPACING.sm,
-  },
-  statBadge: {
-    backgroundColor: COLORS.backgroundCard,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    borderRadius: RADIUS.lg,
-    alignItems: 'center',
-    minWidth: 80,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  statLabel: {
-    ...FONTS.caption,
-    color: COLORS.textMuted,
-    marginTop: SPACING.xs,
-  },
-  statValue: {
-    ...FONTS.bodyMedium,
-    color: COLORS.textPrimary,
-    marginTop: 2,
-  },
-  section: {
-    padding: SPACING.lg,
-    paddingBottom: 0,
-  },
-  sectionTitle: {
-    ...FONTS.overline,
-    color: COLORS.textMuted,
-    marginBottom: SPACING.md,
-  },
-  guidanceCard: {
+  luckyRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: COLORS.backgroundCard,
-    padding: SPACING.md,
-    borderRadius: RADIUS.md,
-    marginBottom: SPACING.sm,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    justifyContent: 'space-around',
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
   },
-  guidanceIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: SPACING.md,
-  },
-  guidanceContent: {
-    flex: 1,
-  },
-  guidanceLabel: {
-    ...FONTS.caption,
-    color: COLORS.textMuted,
-    marginBottom: 2,
-  },
-  guidanceText: {
-    ...FONTS.body,
-    color: COLORS.textPrimary,
-  },
-  focusCard: {
+  luckyItem: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginHorizontal: SPACING.lg,
-    padding: SPACING.md,
-    backgroundColor: COLORS.backgroundCard,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  focusIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: SPACING.md,
+    gap: 6,
   },
-  focusContent: {
-    flex: 1,
+  luckyText: {
+    fontSize: 14,
   },
-  focusLabel: {
-    ...FONTS.overline,
-    color: COLORS.textMuted,
-    marginBottom: 4,
+  tapHint: {
+    alignItems: 'center',
+    marginTop: 16,
   },
-  focusText: {
-    ...FONTS.body,
-    color: COLORS.textPrimary,
+  tapText: {
+    fontSize: 12,
   },
-  actions: {
+  actionsContainer: {
     flexDirection: 'row',
-    gap: SPACING.sm,
-    padding: SPACING.lg,
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    gap: 12,
   },
-  actionCard: {
+  actionButton: {
     flex: 1,
-    backgroundColor: COLORS.backgroundCard,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
   },
   actionIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: SPACING.sm,
+    marginBottom: 8,
   },
-  actionTitle: {
-    ...FONTS.bodyMedium,
-    color: COLORS.textPrimary,
+  actionLabel: {
+    fontSize: 13,
+    fontWeight: '500',
   },
-  actionSubtitle: {
-    ...FONTS.caption,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  featureGrid: {
+  tipsContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.sm,
+    gap: 12,
+    marginBottom: 20,
   },
-  featureCard: {
-    width: '48%',
-    backgroundColor: COLORS.backgroundCard,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.md,
+  tipCard: {
+    flex: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  tipHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    gap: 8,
+    padding: 12,
+    borderBottomWidth: 1,
   },
-  featureEmoji: {
-    fontSize: 32,
-    marginBottom: SPACING.xs,
+  tipTitle: {
+    fontSize: 14,
+    fontWeight: '600',
   },
-  featureTitle: {
-    ...FONTS.bodyMedium,
-    color: COLORS.textPrimary,
+  tipText: {
+    padding: 12,
+    fontSize: 14,
+    lineHeight: 20,
   },
-  featureSubtitle: {
-    ...FONTS.caption,
-    color: COLORS.textMuted,
-    marginTop: 2,
+  zodiacContainer: {
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  zodiacText: {
+    fontSize: 14,
   },
 });
