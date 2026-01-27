@@ -5,6 +5,8 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { COLORS, FONTS, SPACING, RADIUS, INTENTS, METHODS, ANIMATION, darkTheme } from '../../src/constants/theme';
 import { useAuthStore } from '../../src/stores';
 import { getZodiacSymbol } from '../../src/utils/zodiac';
+import { ThemeToggle } from '../../src/components/ThemeToggle';
+import { useTheme } from '../../src/contexts/ThemeContext';
 
 export default function ProfileScreen() {
   const { profile, signOut } = useAuthStore();
@@ -77,6 +79,9 @@ export default function ProfileScreen() {
         {/* Settings */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>SETTINGS</Text>
+          
+          {/* Theme Toggle */}
+          <ThemeToggle />
           
           <TouchableOpacity style={styles.menuItem}>
             <Ionicons name="notifications-outline" size={22} color={COLORS.textSecondary} />

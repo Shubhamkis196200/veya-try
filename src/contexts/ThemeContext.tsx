@@ -1,71 +1,68 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Appearance, useColorScheme } from 'react-native';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { darkTheme, lightTheme, Theme, ThemeMode } from '../constants/theme';
+
+type ThemeMode = 'light' | 'dark' | 'system';
 
 interface ThemeContextType {
-  theme: Theme;
-  themeMode: ThemeMode;
+  mode: ThemeMode;
   isDark: boolean;
-  setThemeMode: (mode: ThemeMode) => void;
-  toggleTheme: () => void;
+  setMode: (mode: ThemeMode) => void;
+  colors: typeof darkColors;
 }
+
+const darkColors = {
+  background: '#0A0A1A',
+  surface: '#1A1A2E',
+  surfaceLight: '#252542',
+  primary: '#8B7FD9',
+  primaryLight: '#A78BFA',
+  secondary: '#C9A962',
+  text: '#FFFFFF',
+  textSecondary: '#A0A0B0',
+  border: '#333355',
+  success: '#10B981',
+  error: '#EF4444',
+  card: 'rgba(26, 26, 46, 0.8)',
+};
+
+const lightColors = {
+  background: '#F8F9FA',
+  surface: '#FFFFFF',
+  surfaceLight: '#F1F5F9',
+  primary: '#7C3AED',
+  primaryLight: '#8B7FD9',
+  secondary: '#D97706',
+  text: '#1A1A2E',
+  textSecondary: '#64748B',
+  border: '#E2E8F0',
+  success: '#10B981',
+  error: '#EF4444',
+  card: 'rgba(255, 255, 255, 0.9)',
+};
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-const THEME_STORAGE_KEY = 'veya_theme_mode';
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const systemScheme = useColorScheme();
+  const [mode, setModeState] = useState<ThemeMode>('system');
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const systemColorScheme = useColorScheme();
-  const [themeMode, setThemeModeState] = useState<ThemeMode>('system');
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  // Load saved theme preference
   useEffect(() => {
-    loadThemePreference();
+    AsyncStorage.getItem('themeMode').then((saved) => {
+      if (saved) setModeState(saved as ThemeMode);
+    });
   }, []);
 
-  const loadThemePreference = async () => {
-    try {
-      const saved = await AsyncStorage.getItem(THEME_STORAGE_KEY);
-      if (saved && ['dark', 'light', 'system'].includes(saved)) {
-        setThemeModeState(saved as ThemeMode);
-      }
-    } catch (error) {
-      // Error loading theme - will use system default
-    }
-    setIsLoaded(true);
+  const setMode = (newMode: ThemeMode) => {
+    setModeState(newMode);
+    AsyncStorage.setItem('themeMode', newMode);
   };
 
-  const setThemeMode = async (mode: ThemeMode) => {
-    setThemeModeState(mode);
-    try {
-      await AsyncStorage.setItem(THEME_STORAGE_KEY, mode);
-    } catch (error) {
-      // Error saving theme - will revert on app restart
-    }
-  };
-
-  const toggleTheme = () => {
-    const newMode = themeMode === 'dark' ? 'light' : 
-                    themeMode === 'light' ? 'system' : 'dark';
-    setThemeMode(newMode);
-  };
-
-  // Determine actual theme
-  const isDark = themeMode === 'system' 
-    ? systemColorScheme === 'dark'
-    : themeMode === 'dark';
-
-  const theme = isDark ? darkTheme : lightTheme;
-
-  // Don't render until theme is loaded
-  if (!isLoaded) {
-    return null;
-  }
+  const isDark = mode === 'dark' || (mode === 'system' && systemScheme === 'dark');
+  const colors = isDark ? darkColors : lightColors;
 
   return (
-    <ThemeContext.Provider value={{ theme, themeMode, isDark, setThemeMode, toggleTheme }}>
+    <ThemeContext.Provider value={{ mode, isDark, setMode, colors }}>
       {children}
     </ThemeContext.Provider>
   );
@@ -73,22 +70,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
 export function useTheme() {
   const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error('useTheme must be used within ThemeProvider');
-  }
+  if (!context) throw new Error('useTheme must be used within ThemeProvider');
   return context;
 }
-
-// Hook to get just colors (convenience)
-export function useColors() {
-  const { theme } = useTheme();
-  return theme.colors;
-}
-
-// Hook to get shadows
-export function useShadows() {
-  const { theme } = useTheme();
-  return theme.shadows;
-}
-
-export default ThemeProvider;

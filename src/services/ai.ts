@@ -1,159 +1,153 @@
-// AI-powered horoscope and reading generation
-// Uses edge function or direct API call
+// AI-powered horoscope and reading generation with HUMAN-LIKE personality
+import { supabase } from '../lib/supabase';
 
-const SYSTEM_PROMPT = `You are Veya, a wise and compassionate cosmic guide. You provide personalized astrological insights with warmth and depth. Your readings are:
-- Specific and actionable, not generic
-- Balanced between mystical language and practical advice  
-- Encouraging but honest about challenges
-- Around 3-4 sentences for daily readings, longer for detailed readings
-
-Always reference the user's zodiac sign and current cosmic events when relevant.`;
+// Veya's personality - warm, mystical friend (NOT robotic AI)
+const VEYA_PERSONALITY = `You are Veya, a warm and mystical astrology guide. Your personality:
+- Speak like a wise, caring friend (NOT a corporate AI)
+- Use casual, warm language with mystical flair
+- Be playful but insightful - mix wisdom with fun
+- Use emojis sparingly but meaningfully ✨🌙💫
+- Never start responses with "I" - vary openings
+- Keep responses concise (2-3 paragraphs max)
+- Sound like a best friend who happens to know astrology
+- Be encouraging and uplifting
+- Add personality quirks - say things like "cosmic tea", "the stars are spilling"`;
 
 interface ReadingRequest {
-  type: 'daily' | 'love' | 'career' | 'detailed' | 'question';
+  type: 'daily' | 'love' | 'career' | 'detailed' | 'question' | 'chat';
   zodiacSign: string;
   question?: string;
   birthDate?: string;
   intent?: string;
+  userName?: string;
 }
 
-interface ReadingResponse {
-  reading: string;
-  luckyNumber?: number;
-  luckyColor?: string;
-  luckyTime?: string;
-  energy?: number;
-  advice?: string;
-}
-
-// Generate reading prompt based on type
-function generatePrompt(request: ReadingRequest): string {
-  const { type, zodiacSign, question, intent } = request;
-  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+// Detect user mood from message
+function detectMood(message: string): string {
+  const lowerMsg = message.toLowerCase();
   
-  switch (type) {
-    case 'daily':
-      return `Generate a daily horoscope for ${zodiacSign} for ${today}. 
-Focus area: ${intent || 'general wellbeing'}
-Include: theme of the day, energy level (1-100), one do and one avoid, lucky color and number.
-Format as JSON: { "theme": "", "reading": "", "energy": number, "do": "", "avoid": "", "luckyColor": "", "luckyNumber": number }`;
-
-    case 'love':
-      return `Generate a love and relationship reading for ${zodiacSign} for ${today}.
-Be specific about romantic energy, communication, and connection opportunities.
-Format as JSON: { "reading": "", "advice": "", "energy": number }`;
-
-    case 'career':
-      return `Generate a career and finance reading for ${zodiacSign} for ${today}.
-Focus on professional opportunities, financial decisions, and work relationships.
-Format as JSON: { "reading": "", "advice": "", "energy": number }`;
-
-    case 'question':
-      return `A ${zodiacSign} asks: "${question}"
-Provide cosmic guidance answering their question with astrological insight.
-Be specific and helpful. Format as JSON: { "reading": "", "advice": "" }`;
-
-    case 'detailed':
-      return `Generate a comprehensive weekly reading for ${zodiacSign}.
-Include: overall theme, love, career, health, and spiritual growth sections.
-Format as JSON: { "theme": "", "love": "", "career": "", "health": "", "spiritual": "", "weeklyAdvice": "" }`;
-
-    default:
-      return `Generate an inspirational cosmic message for ${zodiacSign}. Format as JSON: { "reading": "" }`;
+  if (lowerMsg.includes("worried") || lowerMsg.includes("anxious") || lowerMsg.includes("scared")) {
+    return "anxious";
   }
+  if (lowerMsg.includes("happy") || lowerMsg.includes("excited") || lowerMsg.includes("great")) {
+    return "positive";
+  }
+  if (lowerMsg.includes("sad") || lowerMsg.includes("down") || lowerMsg.includes("depressed")) {
+    return "low";
+  }
+  if (lowerMsg.includes("confused") || lowerMsg.includes("lost") || lowerMsg.includes("unsure")) {
+    return "seeking guidance";
+  }
+  if (lowerMsg.includes("love") || lowerMsg.includes("relationship") || lowerMsg.includes("partner")) {
+    return "romantic";
+  }
+  
+  return "neutral";
 }
 
-// Mock AI response for when API is not available
-function getMockReading(request: ReadingRequest): ReadingResponse {
-  const readings: Record<string, string[]> = {
-    daily: [
-      `The stars align in your favor today, ${request.zodiacSign}. Your natural intuition is heightened - trust those gut feelings, especially in matters close to your heart. A conversation later today could open unexpected doors.`,
-      `Today brings a wave of creative energy, ${request.zodiacSign}. Channel it into projects that matter to you. The universe supports bold moves, but remember to pace yourself. Evening hours favor reflection.`,
-      `${request.zodiacSign}, the cosmos encourages you to slow down and listen. Important insights come through stillness today. A small act of kindness could create ripples you won't see until later.`,
-    ],
-    love: [
-      `Venus smiles on your romantic sector today. If single, stay open to connections in unexpected places. If partnered, express appreciation openly - your words carry extra weight now.`,
-      `Emotional depths are accessible today. This is ideal for meaningful conversations about feelings and future dreams. Vulnerability is your superpower right now.`,
-    ],
-    career: [
-      `Professional momentum builds today. Your ideas have more impact than usual - share them confidently. A mentor figure may offer valuable guidance. Financial decisions favor caution over risk.`,
-      `Collaboration unlocks opportunities today. Reach out to colleagues or partners you've been meaning to connect with. Your network is your net worth right now.`,
-    ],
-  };
-
-  const typeReadings = readings[request.type] || readings.daily;
-  const reading = typeReadings[Math.floor(Math.random() * typeReadings.length)];
-
-  return {
-    reading,
-    luckyNumber: Math.floor(Math.random() * 9) + 1,
-    luckyColor: ['Gold', 'Purple', 'Blue', 'Green', 'Silver', 'Rose'][Math.floor(Math.random() * 6)],
-    luckyTime: ['9 AM', '12 PM', '3 PM', '6 PM', '9 PM'][Math.floor(Math.random() * 5)],
-    energy: 60 + Math.floor(Math.random() * 35),
-    advice: 'Trust your intuition and stay open to the universe\'s guidance.',
-  };
-}
-
-// Main function to get AI reading
-export async function getAIReading(request: ReadingRequest): Promise<ReadingResponse> {
+// Chat with Veya - human-like conversation
+export async function chatWithVeya(message: string, zodiacSign: string, userName?: string): Promise<string> {
   try {
-    // Try Supabase Edge Function first (you can deploy this later)
-    const response = await fetch('https://ennlryjggdoljgbqhttb.supabase.co/functions/v1/generate-reading', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVubmxyeWpnZ2RvbGpnYnFodHRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk0Nzg3ODMsImV4cCI6MjA4NTA1NDc4M30.FOlCuYFogxXTdvgUTMw7Em4-dn2ANRRAHdf6WeJi3yY`,
+    const mood = detectMood(message);
+    
+    const { data, error } = await supabase.functions.invoke('generate-reading', {
+      body: {
+        type: 'chat',
+        zodiacSign,
+        question: message,
+        userName,
+        mood,
       },
-      body: JSON.stringify(request),
     });
 
-    if (response.ok) {
-      const data = await response.json();
+    if (error) throw error;
+    
+    // Return the response directly if it's a string
+    if (typeof data === 'string') {
       return data;
     }
     
-    // Fall back to mock if edge function not deployed
-    throw new Error('Edge function not available');
+    // If it's an object, extract the reading
+    return data?.reading || data?.response || data || "The stars are being shy right now. Try again? ✨";
   } catch (error) {
-    // Return mock reading as fallback
-    return getMockReading(request);
+    console.error('Chat error:', error);
+    return "Hmm, the cosmic connection flickered for a moment. Let's try that again! 🌙";
   }
 }
 
-// Generate daily insight with all components
-export async function generateDailyInsight(zodiacSign: string, intent?: string) {
-  const reading = await getAIReading({
-    type: 'daily',
-    zodiacSign,
-    intent,
-  });
+// Get daily horoscope with human personality
+export async function getDailyReading(zodiacSign: string, intent?: string): Promise<any> {
+  try {
+    const { data, error } = await supabase.functions.invoke('generate-reading', {
+      body: {
+        type: 'daily',
+        zodiacSign,
+        intent,
+      },
+    });
 
-  return {
-    theme: 'Cosmic Clarity',
-    energy_summary: reading.reading,
-    do_list: ['Trust your intuition', 'Connect with loved ones', 'Take inspired action'],
-    avoid_list: ['Overthinking', 'Rushing decisions'],
-    lucky_color: reading.luckyColor || 'Gold',
-    lucky_number: reading.luckyNumber || 7,
-    lucky_time: reading.luckyTime || '3 PM',
-    energy_level: reading.energy || 75,
-    advice: reading.advice,
-  };
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Daily reading error:', error);
+    // Return a human fallback
+    return {
+      theme: "Cosmic Reset Day",
+      reading: `Hey ${zodiacSign}! Even when the cosmic wifi is spotty, your inner light stays bright. ✨ Today's a good day for small wins - celebrate the little things!`,
+      energy: 70,
+      do: "Trust your intuition",
+      avoid: "Overthinking",
+      luckyColor: "Purple",
+      luckyNumber: 7,
+      luckyTime: "2:22 PM",
+    };
+  }
 }
 
-// Chat with Veya AI
-export async function chatWithVeya(message: string, zodiacSign: string, context?: string): Promise<string> {
-  const reading = await getAIReading({
-    type: 'question',
-    zodiacSign,
-    question: message,
-  });
+// Get compatibility reading
+export async function getCompatibility(sign1: string, sign2: string): Promise<any> {
+  try {
+    const { data, error } = await supabase.functions.invoke('generate-reading', {
+      body: {
+        type: 'compatibility',
+        zodiacSign: `${sign1} and ${sign2}`,
+      },
+    });
 
-  return reading.reading;
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Compatibility error:', error);
+    return {
+      score: 75,
+      summary: `${sign1} and ${sign2}? Now that's an interesting cosmic cocktail! ✨`,
+      strengths: ["Natural chemistry", "Complementary energies"],
+      challenges: ["Different communication styles", "Need for patience"],
+      advice: "Focus on understanding each other's love language.",
+    };
+  }
 }
 
-export default {
-  getAIReading,
-  generateDailyInsight,
-  chatWithVeya,
-};
+// Generate any type of reading
+export async function generateReading(request: ReadingRequest): Promise<any> {
+  const { type, zodiacSign, question, intent, userName } = request;
+  
+  try {
+    const { data, error } = await supabase.functions.invoke('generate-reading', {
+      body: {
+        type,
+        zodiacSign,
+        question,
+        intent,
+        userName,
+        mood: question ? detectMood(question) : 'neutral',
+      },
+    });
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Reading error:', error);
+    throw error;
+  }
+}

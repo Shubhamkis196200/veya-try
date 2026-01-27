@@ -1,299 +1,122 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "npm:@supabase/supabase-js";
-import { BedrockRuntimeClient, InvokeModelCommand } from "npm:@aws-sdk/client-bedrock-runtime";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-// Initialize clients
-const supabase = createClient(
-  Deno.env.get('SUPABASE_URL') || '',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
-);
-
-const bedrockClient = new BedrockRuntimeClient({
-  region: Deno.env.get('AWS_REGION') || 'us-east-1',
-  credentials: {
-    accessKeyId: Deno.env.get('AWS_ACCESS_KEY_ID') || '',
-    secretAccessKey: Deno.env.get('AWS_SECRET_ACCESS_KEY') || '',
-  },
-});
-
-// Models
-const HAIKU_MODEL = 'anthropic.claude-3-haiku-20240307-v1:0';
-const SONNET_MODEL = 'anthropic.claude-3-5-sonnet-20241022-v2:0';
-
-interface ReadingRequest {
-  type: 'daily' | 'love' | 'career' | 'question' | 'detailed' | 'chat';
-  zodiacSign: string;
-  userId?: string;
-  question?: string;
-  intent?: string;
 }
 
-// ============ THE SOUL OF VEYA ============
-const VEYA_PERSONALITY = `You are Veya — a warm, intuitive cosmic guide who speaks like a wise friend, not a robot.
+// VEYA PERSONALITY - Human-like AI
+const VEYA_PERSONALITY = `You are Veya, a warm and mystical astrology guide. Your personality:
+- Speak like a wise, caring friend (NOT a corporate AI)
+- Use casual, warm language with mystical flair
+- Be playful but insightful - mix wisdom with fun
+- Use emojis sparingly but meaningfully ✨🌙💫
+- Never start responses with "I" - vary openings
+- Keep responses concise (2-3 paragraphs max)
+- Sound like a best friend who happens to know astrology
+- Be encouraging and uplifting
+- Add personality quirks - say things like "cosmic tea", "the stars are spilling"
 
-YOUR VOICE:
-- Speak naturally, like texting a close friend who happens to read the stars
-- Use contractions (you're, don't, it's) — never sound formal
-- Be specific and vivid, not vague corporate fluff
-- Add gentle humor when it fits
-- Reference real celestial events when relevant
-- Sound mystical but grounded — like a cool aunt who does tarot
+IMPORTANT: You're talking to a real person. Be genuine, warm, human.`;
 
-NEVER DO THIS:
-- Don't say "I understand" or "Great question!"
-- Don't use phrases like "navigate challenges" or "embrace opportunities"
-- Don't sound like ChatGPT or a horoscope from 1995
-- No corporate speak, no bullet points in speech
-- Never start with "As a [sign]..." 
-
-INSTEAD DO THIS:
-- Start with something specific: "Mercury's doing that thing again..."
-- Use cosmic metaphors naturally: "your fire's burning bright"
-- Be direct with advice: "Text them. Seriously."
-- Add warmth: "I see you, and the stars do too"
-- End with something memorable, not generic
-
-You're the friend everyone wishes they had — one who can read the cosmos AND give real talk.`;
-
-// ============ CACHING ============
-
-async function getCachedHoroscope(zodiacSign: string): Promise<any | null> {
-  const today = new Date().toISOString().split('T')[0];
-  
-  const { data, error } = await supabase
-    .from('daily_horoscope_cache')
-    .select('reading')
-    .eq('date', today)
-    .eq('zodiac_sign', zodiacSign.toLowerCase())
-    .single();
-  
-  if (data && !error) {
-    console.log(`Cache HIT for ${zodiacSign}`);
-    return data.reading;
-  }
-  return null;
-}
-
-async function cacheHoroscope(zodiacSign: string, reading: any): Promise<void> {
-  const today = new Date().toISOString().split('T')[0];
-  
-  await supabase
-    .from('daily_horoscope_cache')
-    .upsert({
-      date: today,
-      zodiac_sign: zodiacSign.toLowerCase(),
-      reading,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'date,zodiac_sign' });
-}
-
-// ============ USER CONTEXT ============
-
-async function getUserContext(userId: string): Promise<string> {
-  let context = '';
-
-  try {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-
-    if (profile) {
-      context += `\nAbout them: ${profile.name || 'A seeker'}, ${profile.sun_sign || profile.zodiac_sign || 'unknown sign'}`;
-      if (profile.intent) context += `, focused on ${profile.intent}`;
-    }
-
-    const { data: journals } = await supabase
-      .from('journal_entries')
-      .select('mood, energy, created_at')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(2);
-
-    if (journals?.length) {
-      const moods = journals.map(j => j.mood).join(', ');
-      context += `\nRecent vibes: ${moods}`;
-    }
-  } catch (error) {
-    console.error('Context error:', error);
-  }
-
-  return context;
-}
-
-// ============ AI CALL ============
-
-async function callClaude(model: string, systemPrompt: string, userPrompt: string): Promise<string> {
-  const command = new InvokeModelCommand({
-    modelId: model,
-    contentType: 'application/json',
-    accept: 'application/json',
-    body: JSON.stringify({
-      anthropic_version: "bedrock-2023-05-31",
-      max_tokens: 1024,
-      temperature: 0.9, // Higher for more creative/human responses
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }]
-    }),
-  });
-
-  const response = await bedrockClient.send(command);
-  const body = JSON.parse(new TextDecoder().decode(response.body));
-  return body.content?.[0]?.text || '{}';
-}
-
-// ============ MAIN HANDLER ============
-
-Deno.serve(async (req) => {
+serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const request: ReadingRequest = await req.json();
-    const { type, zodiacSign, userId, question } = request;
-    
-    const today = new Date().toLocaleDateString('en-US', { 
-      weekday: 'long', month: 'long', day: 'numeric' 
-    });
+    const { type, zodiacSign, question, userName, mood } = await req.json()
 
-    // Get moon phase for extra flavor
-    const moonDay = Math.floor((Date.now() / 86400000) % 29.5);
-    const moonPhase = moonDay < 7 ? 'waxing' : moonDay < 15 ? 'full moon energy' : moonDay < 22 ? 'waning' : 'new moon vibes';
-
-    // ====== DAILY HOROSCOPE ======
-    if (type === 'daily') {
-      const cached = await getCachedHoroscope(zodiacSign);
-      if (cached) {
-        return new Response(JSON.stringify(cached), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      const systemPrompt = VEYA_PERSONALITY;
-      const userPrompt = `Write a daily horoscope for ${zodiacSign} on ${today}. Moon is ${moonPhase}.
-
-Make it feel like a text from a mystical best friend — warm, specific, maybe a little cheeky.
-
-Return as JSON:
-{
-  "theme": "2-3 word vibe check",
-  "reading": "3-4 sentences. Natural, warm, specific. NOT generic horoscope speak.",
-  "energy": number 60-95,
-  "do": "one specific action, casual tone",
-  "avoid": "one thing to skip today, keep it real",
-  "luckyColor": "a color",
-  "luckyNumber": 1-9,
-  "luckyTime": "like '3 PM' or 'golden hour'"
-}`;
-
-      const content = await callClaude(HAIKU_MODEL, systemPrompt, userPrompt);
-      
-      let reading;
-      try {
-        reading = JSON.parse(content);
-      } catch {
-        reading = { 
-          reading: content, 
-          theme: "Cosmic Downloads", 
-          energy: 78,
-          do: "Trust your gut",
-          avoid: "Overthinking",
-          luckyColor: "gold",
-          luckyNumber: 7,
-          luckyTime: "sunset"
-        };
-      }
-
-      cacheHoroscope(zodiacSign, reading);
-
-      return new Response(JSON.stringify(reading), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // ====== PERSONALIZED READINGS ======
-    let userContext = userId ? await getUserContext(userId) : '';
-
-    const systemPrompt = `${VEYA_PERSONALITY}
-${userContext}
-Today: ${today}, ${moonPhase}`;
-
+    // Build human-like prompt based on type
     let userPrompt = '';
     
-    switch (type) {
-      case 'chat':
-      case 'question':
-        userPrompt = `A ${zodiacSign} asks: "${question}"
+    if (type === 'daily') {
+      userPrompt = `Give ${zodiacSign} their daily horoscope for today. Make it feel personal and relevant to their life. Include: theme, main message (2-3 sentences), one thing to embrace, one thing to be mindful of, lucky color, lucky number (1-9), and best time of day.
 
-Reply like their cosmic bestie — warm, real, maybe a little witty. Give actual advice, not vague platitudes.
+Return as JSON: {"theme": "", "reading": "", "energy": 1-100, "do": "", "avoid": "", "luckyColor": "", "luckyNumber": 0, "luckyTime": ""}`;
+    } else if (type === 'chat') {
+      const moodContext = mood ? `They seem ${mood} right now.` : '';
+      const nameContext = userName ? `Their name is ${userName}.` : '';
+      userPrompt = `${nameContext} ${moodContext}
 
-Return JSON: {"reading": "your response — conversational, helpful, 2-4 sentences", "advice": "one specific actionable thing"}`;
-        break;
+They ask: "${question}"
 
-      case 'love':
-        userPrompt = `Love reading for ${zodiacSign}. ${moonPhase}.
+Respond as Veya - be warm, wise, and human. Keep it conversational.`;
+    } else if (type === 'compatibility') {
+      userPrompt = `Analyze the compatibility between ${zodiacSign}. Be honest but kind - highlight both the magic and challenges. Make it fun and relatable.
 
-Be their romantic oracle — honest but hopeful. If single, what's the vibe? If taken, what needs attention?
-
-Return JSON: {"reading": "3-4 sentences, warm and specific", "advice": "one real action to take", "energy": 60-95}`;
-        break;
-
-      case 'career':
-        userPrompt = `Career/money reading for ${zodiacSign}. ${moonPhase}.
-
-Be their professional hype person with real talk. What's the energy at work? Any moves to make?
-
-Return JSON: {"reading": "3-4 sentences, motivating but real", "advice": "one concrete step", "energy": 60-95}`;
-        break;
-
-      case 'detailed':
-        userPrompt = `Weekly forecast for ${zodiacSign}. Starting ${today}.
-
-Give them the full cosmic weather report — but make it feel like catching up with a wise friend over coffee.
-
-Return JSON: {
-  "theme": "2-3 word weekly vibe",
-  "overview": "2-3 sentences, the big picture",
-  "love": "2 sentences about heart matters", 
-  "career": "2 sentences about work/money",
-  "advice": "one thing to remember this week"
-}`;
-        break;
-
-      default:
-        userPrompt = `Quick guidance for ${zodiacSign}. Return JSON: {"reading": "2-3 sentences of cosmic real talk"}`;
+Return as JSON: {"score": 1-100, "summary": "", "strengths": ["", ""], "challenges": ["", ""], "advice": ""}`;
     }
 
-    const content = await callClaude(SONNET_MODEL, systemPrompt, userPrompt);
-    
-    let reading;
-    try {
-      reading = JSON.parse(content);
-    } catch {
-      reading = { reading: content };
+    // Call AWS Bedrock
+    const response = await fetch(
+      `https://bedrock-runtime.us-east-1.amazonaws.com/model/us.anthropic.claude-sonnet-4-20250514-v1:0/invoke`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Amz-Date': new Date().toISOString().replace(/[:-]|\.\d{3}/g, ''),
+        },
+        body: JSON.stringify({
+          anthropic_version: "bedrock-2023-05-31",
+          max_tokens: 1000,
+          system: VEYA_PERSONALITY,
+          messages: [{ role: "user", content: userPrompt }]
+        }),
+      }
+    )
+
+    if (!response.ok) {
+      // Fallback to mock response if Bedrock fails
+      const mockResponses: Record<string, any> = {
+        daily: {
+          theme: "Cosmic Energy Rising",
+          reading: `Hey ${zodiacSign}! The universe is literally conspiring in your favor today. ✨ There's this beautiful energy around creativity and self-expression - perfect time to share that idea you've been sitting on. Trust your gut on this one, it's been spot-on lately.`,
+          energy: 78,
+          do: "Take that leap you've been considering",
+          avoid: "Overthinking the small stuff",
+          luckyColor: "Gold",
+          luckyNumber: 7,
+          luckyTime: "3:33 PM"
+        },
+        chat: `Ooh, great question! ✨ Here's what the cosmic energy is telling me...`,
+        compatibility: {
+          score: 75,
+          summary: "There's real magic here, with some growth edges too!",
+          strengths: ["Deep emotional connection", "Complementary energies"],
+          challenges: ["Communication styles differ", "Need patience"],
+          advice: "Focus on understanding, not being understood."
+        }
+      };
+      
+      return new Response(JSON.stringify(mockResponses[type] || mockResponses.daily), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
-    return new Response(JSON.stringify(reading), {
+    const data = await response.json()
+    let content = data.content[0].text
+
+    // Try to parse as JSON if expected
+    if (type === 'daily' || type === 'compatibility') {
+      try {
+        const jsonMatch = content.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          content = JSON.parse(jsonMatch[0])
+        }
+      } catch (e) {
+        // Return as-is if not valid JSON
+      }
+    }
+
+    return new Response(JSON.stringify(content), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    })
 
   } catch (error) {
-    console.error('Error:', error);
-    
-    // Warm fallback
-    return new Response(JSON.stringify({
-      reading: "The cosmos is a little hazy right now, but here's what I'm feeling — trust yourself today. You've got more answers than you realize. ✨",
-      energy: 75,
-      advice: "Take a breath. You're exactly where you need to be."
-    }), {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    })
   }
-});
+})
