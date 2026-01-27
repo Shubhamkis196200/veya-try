@@ -13,7 +13,7 @@ import Animated, {
   FadeInDown,
   FadeInUp,
 } from 'react-native-reanimated';
-import { COLORS, FONTS, SPACING, RADIUS, ANIMATION } from '../../src/constants/theme';
+import { COLORS, FONTS, SPACING, RADIUS, ANIMATION, darkTheme } from '../../src/constants/theme';
 import { StarField } from '../../src/components';
 
 const { width, height } = Dimensions.get('window');
@@ -117,6 +117,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     opacity: 0.2,
     top: 10,
+    ...darkTheme.shadows.glow,
   },
   logoEmoji: { fontSize: 56, color: COLORS.accent },
   logoText: { ...FONTS.h1, fontSize: 48, color: COLORS.textPrimary, marginTop: SPACING.sm },
@@ -131,6 +132,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
+    ...darkTheme.shadows.card,
   },
   featureIcon: {
     width: 48,
@@ -151,8 +153,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.sm,
-    paddingVertical: SPACING.md,
+    paddingVertical: SPACING.md + 2,
     borderRadius: RADIUS.lg,
+    ...darkTheme.shadows.medium,
   },
   ctaText: { ...FONTS.button, color: '#FFF' },
   disclaimer: { ...FONTS.caption, color: COLORS.textMuted, textAlign: 'center' },

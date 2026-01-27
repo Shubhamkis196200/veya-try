@@ -2,11 +2,12 @@ import { useState, useRef, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, ScrollView, TextInput, 
   TouchableOpacity, KeyboardAvoidingView, Platform,
-  Animated, ActivityIndicator
+  ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONTS, SPACING, RADIUS } from '../../src/constants/theme';
+import Animated, { FadeIn, FadeInDown, FadeInUp, SlideInRight, SlideInLeft } from 'react-native-reanimated';
+import { COLORS, FONTS, SPACING, RADIUS, ANIMATION, darkTheme } from '../../src/constants/theme';
 import { useAuthStore } from '../../src/stores';
 import { chatWithVeya } from '../../src/services/ai';
 
@@ -34,18 +35,6 @@ export default function ChatScreen() {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
-  const typingAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (isTyping) {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(typingAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
-          Animated.timing(typingAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
-        ])
-      ).start();
-    }
-  }, [isTyping]);
 
   const sendMessage = async (text: string) => {
     if (!text.trim()) return;
@@ -106,34 +95,56 @@ export default function ChatScreen() {
           onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
         >
           {messages.length === 0 ? (
-            <View style={styles.emptyState}>
-              <View style={styles.emptyIcon}>
+            <Animated.View 
+              entering={FadeIn.duration(ANIMATION.normal)}
+              style={styles.emptyState}
+            >
+              <Animated.View 
+                entering={FadeInDown.delay(100).springify()}
+                style={styles.emptyIcon}
+              >
                 <Ionicons name="sparkles" size={40} color={COLORS.primary} />
-              </View>
-              <Text style={styles.emptyTitle}>Ask anything</Text>
-              <Text style={styles.emptySubtitle}>
+              </Animated.View>
+              <Animated.Text 
+                entering={FadeInDown.delay(200).springify()}
+                style={styles.emptyTitle}
+              >
+                Ask anything
+              </Animated.Text>
+              <Animated.Text 
+                entering={FadeInDown.delay(300).springify()}
+                style={styles.emptySubtitle}
+              >
                 Get personalized cosmic guidance based on your unique birth chart
-              </Text>
+              </Animated.Text>
 
               {/* Suggested Questions */}
               <View style={styles.suggestions}>
                 {suggestedQuestions.map((question, index) => (
-                  <TouchableOpacity
+                  <Animated.View
                     key={index}
-                    style={styles.suggestionCard}
-                    onPress={() => sendMessage(question)}
+                    entering={FadeInUp.delay(400 + index * 80).springify()}
                   >
-                    <Text style={styles.suggestionText}>{question}</Text>
-                    <Ionicons name="arrow-forward" size={16} color={COLORS.textMuted} />
-                  </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.suggestionCard}
+                      onPress={() => sendMessage(question)}
+                    >
+                      <Text style={styles.suggestionText}>{question}</Text>
+                      <Ionicons name="arrow-forward" size={16} color={COLORS.textMuted} />
+                    </TouchableOpacity>
+                  </Animated.View>
                 ))}
               </View>
-            </View>
+            </Animated.View>
           ) : (
             <>
-              {messages.map((message) => (
-                <View
+              {messages.map((message, index) => (
+                <Animated.View
                   key={message.id}
+                  entering={message.role === 'user' 
+                    ? SlideInRight.duration(ANIMATION.fast).springify()
+                    : SlideInLeft.duration(ANIMATION.fast).springify()
+                  }
                   style={[
                     styles.messageBubble,
                     message.role === 'user' ? styles.userBubble : styles.assistantBubble,
@@ -155,11 +166,14 @@ export default function ChatScreen() {
                       {message.content}
                     </Text>
                   </View>
-                </View>
+                </Animated.View>
               ))}
 
               {isTyping && (
-                <View style={[styles.messageBubble, styles.assistantBubble]}>
+                <Animated.View 
+                  entering={FadeIn.duration(ANIMATION.fast)}
+                  style={[styles.messageBubble, styles.assistantBubble]}
+                >
                   <View style={styles.assistantAvatar}>
                     <Ionicons name="sparkles" size={16} color={COLORS.primary} />
                   </View>
@@ -167,7 +181,7 @@ export default function ChatScreen() {
                     <ActivityIndicator size="small" color={COLORS.primary} />
                     <Text style={styles.typingText}>Consulting the stars...</Text>
                   </View>
-                </View>
+                </Animated.View>
               )}
             </>
           )}
@@ -207,7 +221,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   keyboardView: { flex: 1 },
   header: { padding: SPACING.lg, paddingBottom: SPACING.md },
-  title: { ...FONTS.h1, color: COLORS.textPrimary },
+  title: { ...FONTS.h1, color: COLORS.textPrimary, letterSpacing: -0.8 },
   subtitle: { ...FONTS.body, color: COLORS.textMuted, marginTop: SPACING.xs },
 
   messagesContainer: { flex: 1 },
@@ -222,6 +236,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING.lg,
+    ...darkTheme.shadows.glow,
   },
   emptyTitle: { ...FONTS.h2, color: COLORS.textPrimary, marginBottom: SPACING.xs },
   emptySubtitle: { 
@@ -242,6 +257,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
+    ...darkTheme.shadows.card,
   },
   suggestionText: { ...FONTS.body, color: COLORS.textPrimary, flex: 1 },
 
@@ -269,14 +285,16 @@ const styles = StyleSheet.create({
   userBubbleContent: {
     backgroundColor: COLORS.primary,
     borderBottomRightRadius: 4,
+    ...darkTheme.shadows.small,
   },
   assistantBubbleContent: {
     backgroundColor: COLORS.backgroundCard,
     borderBottomLeftRadius: 4,
     borderWidth: 1,
     borderColor: COLORS.border,
+    ...darkTheme.shadows.small,
   },
-  messageText: { ...FONTS.body, color: COLORS.textPrimary, lineHeight: 22 },
+  messageText: { ...FONTS.body, color: COLORS.textPrimary, lineHeight: 24 },
   userMessageText: { color: COLORS.textInverse },
 
   typingBubble: {
@@ -291,6 +309,7 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.lg,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
+    backgroundColor: COLORS.background,
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -302,6 +321,7 @@ const styles = StyleSheet.create({
     paddingLeft: SPACING.md,
     paddingRight: SPACING.xs,
     paddingVertical: SPACING.xs,
+    ...darkTheme.shadows.small,
   },
   input: {
     flex: 1,
@@ -317,6 +337,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    ...darkTheme.shadows.small,
   },
   sendButtonDisabled: {
     backgroundColor: COLORS.backgroundMuted,

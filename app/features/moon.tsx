@@ -11,7 +11,7 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { COLORS, FONTS, SPACING, RADIUS } from '../../src/constants/theme';
+import { COLORS, FONTS, SPACING, RADIUS, darkTheme } from '../../src/constants/theme';
 
 const { width } = Dimensions.get('window');
 
@@ -283,6 +283,7 @@ const styles = StyleSheet.create({
     borderRadius: 75,
     backgroundColor: COLORS.celestial.moon,
     opacity: 0.3,
+    ...darkTheme.shadows.glow,
   },
   starsContainer: {
     position: 'absolute',
@@ -333,6 +334,7 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
+    ...darkTheme.shadows.card,
   },
   descriptionHeader: {
     flexDirection: 'row',
@@ -352,6 +354,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
     borderWidth: 1,
     borderColor: COLORS.borderGold,
+    ...darkTheme.shadows.glow,
   },
   affirmationLabel: { ...FONTS.overline, color: COLORS.primary, marginBottom: SPACING.sm },
   affirmationText: { ...FONTS.bodyLarge, color: COLORS.textPrimary, textAlign: 'center', fontStyle: 'italic' },
@@ -368,6 +371,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
     borderWidth: 1,
     borderColor: COLORS.border,
+    ...darkTheme.shadows.small,
   },
   planetHeader: {
     flexDirection: 'row',

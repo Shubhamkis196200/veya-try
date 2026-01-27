@@ -1,7 +1,8 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONTS, SPACING, RADIUS, INTENTS, METHODS } from '../../src/constants/theme';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { COLORS, FONTS, SPACING, RADIUS, INTENTS, METHODS, ANIMATION, darkTheme } from '../../src/constants/theme';
 import { useAuthStore } from '../../src/stores';
 import { getZodiacSymbol } from '../../src/utils/zodiac';
 
@@ -15,25 +16,27 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
         {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.avatar}>
+        <Animated.View entering={FadeInDown.duration(ANIMATION.normal)} style={styles.header}>
+          <Animated.View entering={FadeIn.delay(100).springify()} style={styles.avatar}>
             <Text style={styles.avatarText}>
               {(profile?.name?.[0] || 'V').toUpperCase()}
             </Text>
-          </View>
-          <Text style={styles.name}>{profile?.name || 'Veya User'}</Text>
+          </Animated.View>
+          <Animated.Text entering={FadeInDown.delay(200)} style={styles.name}>
+            {profile?.name || 'Veya User'}
+          </Animated.Text>
           {profile?.zodiac_sign && (
-            <Text style={styles.zodiac}>
+            <Animated.Text entering={FadeInDown.delay(300)} style={styles.zodiac}>
               {getZodiacSymbol(profile.zodiac_sign)} {profile.zodiac_sign}
-            </Text>
+            </Animated.Text>
           )}
-        </View>
+        </Animated.View>
 
         {/* Info Cards */}
         <View style={styles.cards}>
           {/* Method */}
           {methodInfo && (
-            <View style={styles.infoCard}>
+            <Animated.View entering={FadeInDown.delay(400)} style={styles.infoCard}>
               <View style={[styles.infoIcon, { backgroundColor: methodInfo.color + '15' }]}>
                 <Ionicons name={methodInfo.icon as any} size={20} color={methodInfo.color} />
               </View>
@@ -41,12 +44,12 @@ export default function ProfileScreen() {
                 <Text style={styles.infoLabel}>Astrology System</Text>
                 <Text style={styles.infoValue}>{methodInfo.title}</Text>
               </View>
-            </View>
+            </Animated.View>
           )}
 
           {/* Intent */}
           {intentInfo && (
-            <View style={styles.infoCard}>
+            <Animated.View entering={FadeInDown.delay(500)} style={styles.infoCard}>
               <View style={[styles.infoIcon, { backgroundColor: intentInfo.color + '15' }]}>
                 <Ionicons name={intentInfo.icon as any} size={20} color={intentInfo.color} />
               </View>
@@ -54,12 +57,12 @@ export default function ProfileScreen() {
                 <Text style={styles.infoLabel}>Focus Area</Text>
                 <Text style={styles.infoValue}>{intentInfo.title}</Text>
               </View>
-            </View>
+            </Animated.View>
           )}
 
           {/* DOB */}
           {profile?.dob && (
-            <View style={styles.infoCard}>
+            <Animated.View entering={FadeInDown.delay(600)} style={styles.infoCard}>
               <View style={[styles.infoIcon, { backgroundColor: COLORS.celestial.sun + '15' }]}>
                 <Ionicons name="calendar" size={20} color={COLORS.celestial.sun} />
               </View>
@@ -67,7 +70,7 @@ export default function ProfileScreen() {
                 <Text style={styles.infoLabel}>Birth Date</Text>
                 <Text style={styles.infoValue}>{profile.dob}</Text>
               </View>
-            </View>
+            </Animated.View>
           )}
         </View>
 
@@ -129,6 +132,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING.md,
+    ...darkTheme.shadows.glow,
   },
   avatarText: {
     ...FONTS.h1,
@@ -155,6 +159,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
+    ...darkTheme.shadows.card,
   },
   infoIcon: {
     width: 44,
@@ -194,6 +199,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
     borderWidth: 1,
     borderColor: COLORS.border,
+    ...darkTheme.shadows.small,
   },
   menuText: {
     ...FONTS.body,

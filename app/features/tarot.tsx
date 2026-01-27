@@ -13,7 +13,7 @@ import Animated, {
   withRepeat,
   Easing,
 } from 'react-native-reanimated';
-import { COLORS, FONTS, SPACING, RADIUS } from '../../src/constants/theme';
+import { COLORS, FONTS, SPACING, RADIUS, darkTheme } from '../../src/constants/theme';
 
 const { width } = Dimensions.get('window');
 
@@ -256,17 +256,14 @@ const styles = StyleSheet.create({
     height: 350,
     borderRadius: RADIUS.xl,
     backgroundColor: COLORS.accent,
-    shadowColor: COLORS.accent,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 30,
+    ...darkTheme.shadows.glow,
   },
   card: {
     width: 200,
     height: 300,
     borderRadius: RADIUS.xl,
     overflow: 'hidden',
-    elevation: 10,
+    ...darkTheme.shadows.large,
   },
   cardGradient: {
     flex: 1,
@@ -327,6 +324,7 @@ const styles = StyleSheet.create({
     padding: SPACING.xl,
     borderWidth: 1,
     borderColor: COLORS.border,
+    ...darkTheme.shadows.card,
   },
   meaningHeader: {
     flexDirection: 'row',
@@ -378,6 +376,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
+    ...darkTheme.shadows.small,
   },
   infoContent: { flex: 1, marginLeft: SPACING.md },
   infoTitle: { ...FONTS.bodyMedium, color: COLORS.textPrimary },
@@ -389,6 +388,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
+    ...darkTheme.shadows.small,
   },
   tipsTitle: { ...FONTS.bodyMedium, color: COLORS.textPrimary, marginBottom: SPACING.md },
   tipItem: { flexDirection: 'row', marginBottom: SPACING.sm },

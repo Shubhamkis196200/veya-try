@@ -9,7 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { COLORS, FONTS, SPACING, RADIUS } from '../../src/constants/theme';
+import { COLORS, FONTS, SPACING, RADIUS, darkTheme } from '../../src/constants/theme';
 
 const { width } = Dimensions.get('window');
 
@@ -374,6 +374,7 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
     borderWidth: 1,
     borderColor: COLORS.borderGold,
+    ...darkTheme.shadows.card,
   },
   todayHeader: { flexDirection: 'row', alignItems: 'center' },
   todayEmoji: { fontSize: 40, marginRight: SPACING.md },
@@ -397,6 +398,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     marginBottom: SPACING.xl,
+    ...darkTheme.shadows.medium,
   },
   writePromptIcon: {
     width: 50,
@@ -425,6 +427,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,
+    ...darkTheme.shadows.small,
   },
   statValue: { ...FONTS.h2, color: COLORS.primary },
   statLabel: { ...FONTS.caption, color: COLORS.textMuted, marginTop: 2 },
@@ -445,6 +448,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,
+    ...darkTheme.shadows.small,
   },
   moodEmoji: { fontSize: 24 },
   moodLabel: { ...FONTS.caption, color: COLORS.textMuted, marginTop: 4 },
@@ -514,6 +518,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
     borderWidth: 1,
     borderColor: COLORS.border,
+    ...darkTheme.shadows.small,
   },
   entryEmoji: { fontSize: 28, marginRight: SPACING.md },
   entryContent: { flex: 1 },
@@ -541,10 +546,6 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    ...darkTheme.shadows.large,
   },
 });
