@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { format, addDays, startOfWeek, addWeeks } from 'date-fns';
-import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../../src/constants/theme';
+import { COLORS, FONTS, SPACING, RADIUS } from '../../src/constants/theme';
 
 const { width } = Dimensions.get('window');
 
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: RADIUS.full,
   },
-  energyBadgeText: { ...FONTS.captionMedium, color: COLORS.primary },
+  energyBadgeText: { ...FONTS.caption, color: COLORS.primary },
   dayHighlight: { ...FONTS.bodyLarge, color: COLORS.textPrimary, marginBottom: SPACING.lg },
   
   // Time Blocks
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.md,
   },
   timeBlockLabel: { ...FONTS.caption, color: COLORS.textMuted, marginTop: 4 },
-  timeBlockValue: { ...FONTS.captionMedium, color: COLORS.textPrimary, marginTop: 2 },
+  timeBlockValue: { ...FONTS.caption, color: COLORS.textPrimary, marginTop: 2 },
 
   // Section
   section: { paddingHorizontal: SPACING.lg, marginBottom: SPACING.lg },
@@ -439,7 +439,7 @@ const styles = StyleSheet.create({
     marginRight: SPACING.md,
   },
   dateContent: { flex: 1 },
-  dateLabel: { ...FONTS.captionMedium, color: COLORS.primary },
+  dateLabel: { ...FONTS.caption, color: COLORS.primary },
   dateEvent: { ...FONTS.body, color: COLORS.textPrimary, marginTop: 2 },
 
   // Areas Grid

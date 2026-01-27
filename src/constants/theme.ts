@@ -253,7 +253,7 @@ export const lightTheme = {
   },
 };
 
-export type Theme = typeof darkTheme;
+export type Theme = typeof darkTheme | typeof lightTheme;
 
 // Shared values (same in both themes)
 export const SPACING = {
@@ -354,13 +354,45 @@ export const ZODIAC = {
 } as const;
 
 export const INTENTS = {
-  love: { title: 'Love & Relationships', icon: 'heart', color: darkTheme.colors.intent.love },
-  career: { title: 'Career & Success', icon: 'briefcase', color: darkTheme.colors.intent.career },
-  family: { title: 'Family & Home', icon: 'home', color: darkTheme.colors.intent.family },
-  growth: { title: 'Personal Growth', icon: 'trending-up', color: darkTheme.colors.intent.growth },
-  wealth: { title: 'Wealth & Prosperity', icon: 'cash', color: darkTheme.colors.intent.wealth },
-  health: { title: 'Health & Wellness', icon: 'fitness', color: darkTheme.colors.intent.health },
+  love: { key: 'love', title: 'Love & Relationships', icon: 'heart', color: darkTheme.colors.intent.love, symbol: '❤️', description: 'Find love and deepen connections' },
+  career: { key: 'career', title: 'Career & Success', icon: 'briefcase', color: darkTheme.colors.intent.career, symbol: '💼', description: 'Advance your professional life' },
+  family: { key: 'family', title: 'Family & Home', icon: 'home', color: darkTheme.colors.intent.family, symbol: '🏠', description: 'Strengthen family bonds' },
+  growth: { key: 'growth', title: 'Personal Growth', icon: 'trending-up', color: darkTheme.colors.intent.growth, symbol: '🌱', description: 'Evolve and transform yourself' },
+  wealth: { key: 'wealth', title: 'Wealth & Prosperity', icon: 'cash', color: darkTheme.colors.intent.wealth, symbol: '💰', description: 'Attract abundance and wealth' },
+  health: { key: 'health', title: 'Health & Wellness', icon: 'fitness', color: darkTheme.colors.intent.health, symbol: '💪', description: 'Improve your wellbeing' },
 } as const;
 
 // Legacy exports for compatibility
 export const COLORS = darkTheme.colors;
+
+// Methods for fortune telling
+export const METHODS = {
+  astrology: { 
+    key: 'astrology',
+    title: 'Astrology', 
+    icon: 'planet', 
+    description: 'Star-based guidance',
+    subtitle: 'Star-based guidance',
+    symbol: '✨',
+    color: darkTheme.colors.primary,
+  },
+  tarot: { 
+    key: 'tarot',
+    title: 'Tarot', 
+    icon: 'albums', 
+    description: 'Card readings',
+    subtitle: 'Card readings',
+    symbol: '🎴',
+    color: darkTheme.colors.accent,
+  },
+  numerology: { 
+    key: 'numerology',
+    title: 'Numerology', 
+    icon: 'calculator', 
+    description: 'Number wisdom',
+    subtitle: 'Number wisdom',
+    symbol: '🔢',
+    color: darkTheme.colors.intent.growth,
+  },
+} as const;
+export type ZodiacKey = keyof typeof ZODIAC;

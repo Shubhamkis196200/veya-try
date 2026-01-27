@@ -78,19 +78,19 @@ export default function ProfileScreen() {
           <TouchableOpacity style={styles.menuItem}>
             <Ionicons name="notifications-outline" size={22} color={COLORS.textSecondary} />
             <Text style={styles.menuText}>Notifications</Text>
-            <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
+            <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.menuItem}>
             <Ionicons name="shield-checkmark-outline" size={22} color={COLORS.textSecondary} />
             <Text style={styles.menuText}>Privacy</Text>
-            <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
+            <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.menuItem}>
             <Ionicons name="help-circle-outline" size={22} color={COLORS.textSecondary} />
             <Text style={styles.menuText}>Help & Support</Text>
-            <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
+            <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
           
           <TouchableOpacity style={[styles.menuItem, styles.signOut]} onPress={signOut}>
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
   },
   version: {
     ...FONTS.caption,
-    color: COLORS.textLight,
+    color: COLORS.textSecondary,
     textAlign: 'center',
     marginTop: SPACING.xl,
   },

@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.lg,
-    paddingBottom: SPACING.xxxl,
+    paddingBottom: SPACING.xxl,
   },
   stepIndicator: {
     alignItems: 'center',

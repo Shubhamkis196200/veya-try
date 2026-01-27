@@ -6,7 +6,6 @@ import Animated, {
   withSpring,
   interpolate,
 } from 'react-native-reanimated';
-import { ANIMATION } from '../constants/theme';
 
 interface AnimatedCardProps {
   children: React.ReactNode;
@@ -30,7 +29,7 @@ export function AnimatedCard({
 
   React.useEffect(() => {
     const timer = setTimeout(() => {
-      entered.value = withSpring(1, ANIMATION.springSmooth);
+      entered.value = withSpring(1, { damping: 15 });
     }, delay);
     return () => clearTimeout(timer);
   }, [delay]);
@@ -47,12 +46,12 @@ export function AnimatedCard({
 
   const handlePressIn = () => {
     if (onPress && !disabled) {
-      pressed.value = withSpring(1, ANIMATION.springBouncy);
+      pressed.value = withSpring(1, { damping: 10 });
     }
   };
 
   const handlePressOut = () => {
-    pressed.value = withSpring(0, ANIMATION.springBouncy);
+    pressed.value = withSpring(0, { damping: 10 });
   };
 
   return (
@@ -60,10 +59,12 @@ export function AnimatedCard({
       onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      disabled={disabled || !onPress}
+      disabled={disabled}
       style={[animatedStyle, style]}
     >
       {children}
     </AnimatedPressable>
   );
 }
+
+export default AnimatedCard;

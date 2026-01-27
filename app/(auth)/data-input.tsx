@@ -76,7 +76,7 @@ export default function DataInputScreen() {
                 value={name}
                 onChangeText={setName}
                 placeholder="Enter your name"
-                placeholderTextColor={COLORS.textLight}
+                placeholderTextColor={COLORS.textSecondary}
                 autoCapitalize="words"
               />
             </View>
@@ -90,7 +90,7 @@ export default function DataInputScreen() {
                   value={day}
                   onChangeText={(t) => setDay(t.replace(/\D/g, '').slice(0, 2))}
                   placeholder="DD"
-                  placeholderTextColor={COLORS.textLight}
+                  placeholderTextColor={COLORS.textSecondary}
                   keyboardType="number-pad"
                   maxLength={2}
                 />
@@ -99,7 +99,7 @@ export default function DataInputScreen() {
                   value={month}
                   onChangeText={(t) => setMonth(t.replace(/\D/g, '').slice(0, 2))}
                   placeholder="MM"
-                  placeholderTextColor={COLORS.textLight}
+                  placeholderTextColor={COLORS.textSecondary}
                   keyboardType="number-pad"
                   maxLength={2}
                 />
@@ -108,7 +108,7 @@ export default function DataInputScreen() {
                   value={year}
                   onChangeText={(t) => setYear(t.replace(/\D/g, '').slice(0, 4))}
                   placeholder="YYYY"
-                  placeholderTextColor={COLORS.textLight}
+                  placeholderTextColor={COLORS.textSecondary}
                   keyboardType="number-pad"
                   maxLength={4}
                 />
@@ -123,7 +123,7 @@ export default function DataInputScreen() {
                 value={birthTime}
                 onChangeText={setBirthTime}
                 placeholder="e.g., 14:30 or 2:30 PM"
-                placeholderTextColor={COLORS.textLight}
+                placeholderTextColor={COLORS.textSecondary}
               />
             </View>
 
@@ -135,7 +135,7 @@ export default function DataInputScreen() {
                 value={birthPlace}
                 onChangeText={setBirthPlace}
                 placeholder="City, Country"
-                placeholderTextColor={COLORS.textLight}
+                placeholderTextColor={COLORS.textSecondary}
                 autoCapitalize="words"
               />
             </View>
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   buttonDisabled: {
-    backgroundColor: COLORS.textLight,
+    backgroundColor: COLORS.textSecondary,
   },
   buttonText: {
     ...FONTS.bodyMedium,

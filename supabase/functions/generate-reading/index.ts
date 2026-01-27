@@ -21,10 +21,9 @@ const bedrockClient = new BedrockRuntimeClient({
   },
 });
 
-// Models - Haiku for cached/simple, Sonnet for personalized
+// Models
 const HAIKU_MODEL = 'anthropic.claude-3-haiku-20240307-v1:0';
 const SONNET_MODEL = 'anthropic.claude-3-5-sonnet-20241022-v2:0';
-const EMBEDDING_MODEL = 'amazon.titan-embed-text-v2:0';
 
 interface ReadingRequest {
   type: 'daily' | 'love' | 'career' | 'question' | 'detailed' | 'chat';
@@ -34,9 +33,35 @@ interface ReadingRequest {
   intent?: string;
 }
 
-// ============ CACHING SYSTEM ============
+// ============ THE SOUL OF VEYA ============
+const VEYA_PERSONALITY = `You are Veya — a warm, intuitive cosmic guide who speaks like a wise friend, not a robot.
 
-// Check cache for daily horoscope
+YOUR VOICE:
+- Speak naturally, like texting a close friend who happens to read the stars
+- Use contractions (you're, don't, it's) — never sound formal
+- Be specific and vivid, not vague corporate fluff
+- Add gentle humor when it fits
+- Reference real celestial events when relevant
+- Sound mystical but grounded — like a cool aunt who does tarot
+
+NEVER DO THIS:
+- Don't say "I understand" or "Great question!"
+- Don't use phrases like "navigate challenges" or "embrace opportunities"
+- Don't sound like ChatGPT or a horoscope from 1995
+- No corporate speak, no bullet points in speech
+- Never start with "As a [sign]..." 
+
+INSTEAD DO THIS:
+- Start with something specific: "Mercury's doing that thing again..."
+- Use cosmic metaphors naturally: "your fire's burning bright"
+- Be direct with advice: "Text them. Seriously."
+- Add warmth: "I see you, and the stars do too"
+- End with something memorable, not generic
+
+You're the friend everyone wishes they had — one who can read the cosmos AND give real talk.`;
+
+// ============ CACHING ============
+
 async function getCachedHoroscope(zodiacSign: string): Promise<any | null> {
   const today = new Date().toISOString().split('T')[0];
   
@@ -51,12 +76,9 @@ async function getCachedHoroscope(zodiacSign: string): Promise<any | null> {
     console.log(`Cache HIT for ${zodiacSign}`);
     return data.reading;
   }
-  
-  console.log(`Cache MISS for ${zodiacSign}`);
   return null;
 }
 
-// Save to cache
 async function cacheHoroscope(zodiacSign: string, reading: any): Promise<void> {
   const today = new Date().toISOString().split('T')[0];
   
@@ -66,44 +88,16 @@ async function cacheHoroscope(zodiacSign: string, reading: any): Promise<void> {
       date: today,
       zodiac_sign: zodiacSign.toLowerCase(),
       reading,
-    }, {
-      onConflict: 'date,zodiac_sign'
-    });
-  
-  console.log(`Cached horoscope for ${zodiacSign}`);
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'date,zodiac_sign' });
 }
 
-// ============ EMBEDDING FOR RAG ============
+// ============ USER CONTEXT ============
 
-async function getEmbedding(text: string): Promise<number[]> {
-  try {
-    const command = new InvokeModelCommand({
-      modelId: EMBEDDING_MODEL,
-      contentType: 'application/json',
-      accept: 'application/json',
-      body: JSON.stringify({
-        inputText: text,
-        dimensions: 1536,
-        normalize: true,
-      }),
-    });
-
-    const response = await bedrockClient.send(command);
-    const body = JSON.parse(new TextDecoder().decode(response.body));
-    return body.embedding;
-  } catch (error) {
-    console.error('Embedding error:', error);
-    return [];
-  }
-}
-
-// ============ USER CONTEXT (RAG) ============
-
-async function getUserContext(userId: string, question: string): Promise<string> {
+async function getUserContext(userId: string): Promise<string> {
   let context = '';
 
   try {
-    // Get user profile
     const { data: profile } = await supabase
       .from('profiles')
       .select('*')
@@ -111,71 +105,26 @@ async function getUserContext(userId: string, question: string): Promise<string>
       .single();
 
     if (profile) {
-      context += `\n## User Profile:
-- Name: ${profile.name || 'Friend'}
-- Sun Sign: ${profile.sun_sign || profile.zodiac_sign || 'Unknown'}
-- Birth Date: ${profile.birth_date || 'Unknown'}
-- Focus: ${profile.intent || 'General'}`;
+      context += `\nAbout them: ${profile.name || 'A seeker'}, ${profile.sun_sign || profile.zodiac_sign || 'unknown sign'}`;
+      if (profile.intent) context += `, focused on ${profile.intent}`;
     }
 
-    // Get recent journal entries
     const { data: journals } = await supabase
       .from('journal_entries')
-      .select('mood, energy, gratitude, created_at')
+      .select('mood, energy, created_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
-      .limit(3);
+      .limit(2);
 
     if (journals?.length) {
-      context += `\n## Recent Mood:`;
-      journals.forEach((j, i) => {
-        context += `\n- ${j.mood} (energy: ${j.energy}/10)`;
-      });
-    }
-
-    // RAG: Search similar past readings
-    if (question) {
-      const embedding = await getEmbedding(question);
-      
-      if (embedding.length > 0) {
-        const { data: similar } = await supabase
-          .rpc('search_reading_history', {
-            query_embedding: embedding,
-            match_user_id: userId,
-            match_count: 2
-          });
-
-        if (similar?.length) {
-          context += `\n## Past Readings:`;
-          similar.forEach((r: any) => {
-            context += `\n- Q: "${r.question?.substring(0, 50)}..."`;
-          });
-        }
-      }
+      const moods = journals.map(j => j.mood).join(', ');
+      context += `\nRecent vibes: ${moods}`;
     }
   } catch (error) {
     console.error('Context error:', error);
   }
 
   return context;
-}
-
-// ============ SAVE HISTORY ============
-
-async function saveToHistory(userId: string, type: string, question: string, response: string) {
-  try {
-    const embedding = await getEmbedding(`${question} ${response}`);
-    
-    await supabase.from('reading_history').insert({
-      user_id: userId,
-      type,
-      question,
-      response,
-      embedding: embedding.length > 0 ? embedding : null,
-    });
-  } catch (error) {
-    console.error('Save error:', error);
-  }
 }
 
 // ============ AI CALL ============
@@ -188,7 +137,7 @@ async function callClaude(model: string, systemPrompt: string, userPrompt: strin
     body: JSON.stringify({
       anthropic_version: "bedrock-2023-05-31",
       max_tokens: 1024,
-      temperature: 0.8,
+      temperature: 0.9, // Higher for more creative/human responses
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }]
     }),
@@ -208,15 +157,18 @@ Deno.serve(async (req) => {
 
   try {
     const request: ReadingRequest = await req.json();
-    const { type, zodiacSign, userId, question, intent } = request;
+    const { type, zodiacSign, userId, question } = request;
     
     const today = new Date().toLocaleDateString('en-US', { 
       weekday: 'long', month: 'long', day: 'numeric' 
     });
 
-    // ====== DAILY HOROSCOPE (CACHED) ======
+    // Get moon phase for extra flavor
+    const moonDay = Math.floor((Date.now() / 86400000) % 29.5);
+    const moonPhase = moonDay < 7 ? 'waxing' : moonDay < 15 ? 'full moon energy' : moonDay < 22 ? 'waning' : 'new moon vibes';
+
+    // ====== DAILY HOROSCOPE ======
     if (type === 'daily') {
-      // Check cache first
       const cached = await getCachedHoroscope(zodiacSign);
       if (cached) {
         return new Response(JSON.stringify(cached), {
@@ -224,10 +176,22 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Generate new (uses cheap Haiku model)
-      const systemPrompt = `You are Veya, a cosmic guide. Generate a daily horoscope. Be specific and inspiring. JSON only.`;
-      const userPrompt = `Daily horoscope for ${zodiacSign} on ${today}.
-Return JSON: {"theme":"string","reading":"string (3-4 sentences)","energy":number(60-95),"do":"string","avoid":"string","luckyColor":"string","luckyNumber":number(1-9),"luckyTime":"string like 3 PM"}`;
+      const systemPrompt = VEYA_PERSONALITY;
+      const userPrompt = `Write a daily horoscope for ${zodiacSign} on ${today}. Moon is ${moonPhase}.
+
+Make it feel like a text from a mystical best friend — warm, specific, maybe a little cheeky.
+
+Return as JSON:
+{
+  "theme": "2-3 word vibe check",
+  "reading": "3-4 sentences. Natural, warm, specific. NOT generic horoscope speak.",
+  "energy": number 60-95,
+  "do": "one specific action, casual tone",
+  "avoid": "one thing to skip today, keep it real",
+  "luckyColor": "a color",
+  "luckyNumber": 1-9,
+  "luckyTime": "like '3 PM' or 'golden hour'"
+}`;
 
       const content = await callClaude(HAIKU_MODEL, systemPrompt, userPrompt);
       
@@ -235,10 +199,18 @@ Return JSON: {"theme":"string","reading":"string (3-4 sentences)","energy":numbe
       try {
         reading = JSON.parse(content);
       } catch {
-        reading = { reading: content, theme: "Cosmic Energy", energy: 75 };
+        reading = { 
+          reading: content, 
+          theme: "Cosmic Downloads", 
+          energy: 78,
+          do: "Trust your gut",
+          avoid: "Overthinking",
+          luckyColor: "gold",
+          luckyNumber: 7,
+          luckyTime: "sunset"
+        };
       }
 
-      // Cache it (async)
       cacheHoroscope(zodiacSign, reading);
 
       return new Response(JSON.stringify(reading), {
@@ -246,35 +218,57 @@ Return JSON: {"theme":"string","reading":"string (3-4 sentences)","energy":numbe
       });
     }
 
-    // ====== PERSONALIZED (USES SONNET + RAG) ======
-    let userContext = '';
-    if (userId) {
-      userContext = await getUserContext(userId, question || '');
-    }
+    // ====== PERSONALIZED READINGS ======
+    let userContext = userId ? await getUserContext(userId) : '';
 
-    const systemPrompt = `You are Veya, a wise cosmic guide. Provide personalized guidance.
+    const systemPrompt = `${VEYA_PERSONALITY}
 ${userContext}
-Today: ${today}. Be warm, specific, helpful. JSON only.`;
+Today: ${today}, ${moonPhase}`;
 
     let userPrompt = '';
     
     switch (type) {
       case 'chat':
       case 'question':
-        userPrompt = `User (${zodiacSign}) asks: "${question}"
-Return JSON: {"reading":"string","advice":"string"}`;
+        userPrompt = `A ${zodiacSign} asks: "${question}"
+
+Reply like their cosmic bestie — warm, real, maybe a little witty. Give actual advice, not vague platitudes.
+
+Return JSON: {"reading": "your response — conversational, helpful, 2-4 sentences", "advice": "one specific actionable thing"}`;
         break;
+
       case 'love':
-        userPrompt = `Love reading for ${zodiacSign}. Return JSON: {"reading":"string","advice":"string","energy":number}`;
+        userPrompt = `Love reading for ${zodiacSign}. ${moonPhase}.
+
+Be their romantic oracle — honest but hopeful. If single, what's the vibe? If taken, what needs attention?
+
+Return JSON: {"reading": "3-4 sentences, warm and specific", "advice": "one real action to take", "energy": 60-95}`;
         break;
+
       case 'career':
-        userPrompt = `Career reading for ${zodiacSign}. Return JSON: {"reading":"string","advice":"string","energy":number}`;
+        userPrompt = `Career/money reading for ${zodiacSign}. ${moonPhase}.
+
+Be their professional hype person with real talk. What's the energy at work? Any moves to make?
+
+Return JSON: {"reading": "3-4 sentences, motivating but real", "advice": "one concrete step", "energy": 60-95}`;
         break;
+
       case 'detailed':
-        userPrompt = `Weekly reading for ${zodiacSign}. Return JSON: {"theme":"string","overview":"string","love":"string","career":"string","advice":"string"}`;
+        userPrompt = `Weekly forecast for ${zodiacSign}. Starting ${today}.
+
+Give them the full cosmic weather report — but make it feel like catching up with a wise friend over coffee.
+
+Return JSON: {
+  "theme": "2-3 word weekly vibe",
+  "overview": "2-3 sentences, the big picture",
+  "love": "2 sentences about heart matters", 
+  "career": "2 sentences about work/money",
+  "advice": "one thing to remember this week"
+}`;
         break;
+
       default:
-        userPrompt = `Guidance for ${zodiacSign}. Return JSON: {"reading":"string"}`;
+        userPrompt = `Quick guidance for ${zodiacSign}. Return JSON: {"reading": "2-3 sentences of cosmic real talk"}`;
     }
 
     const content = await callClaude(SONNET_MODEL, systemPrompt, userPrompt);
@@ -286,11 +280,6 @@ Return JSON: {"reading":"string","advice":"string"}`;
       reading = { reading: content };
     }
 
-    // Save to history (async)
-    if (userId) {
-      saveToHistory(userId, type, question || '', reading.reading || content);
-    }
-
     return new Response(JSON.stringify(reading), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -298,9 +287,11 @@ Return JSON: {"reading":"string","advice":"string"}`;
   } catch (error) {
     console.error('Error:', error);
     
+    // Warm fallback
     return new Response(JSON.stringify({
-      reading: "The stars align in your favor. Trust your path today.",
+      reading: "The cosmos is a little hazy right now, but here's what I'm feeling — trust yourself today. You've got more answers than you realize. ✨",
       energy: 75,
+      advice: "Take a breath. You're exactly where you need to be."
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

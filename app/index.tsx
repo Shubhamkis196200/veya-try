@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
     borderRadius: 150,
   },
   logo: {
-    ...FONTS.hero,
+    ...FONTS.h1,
     fontSize: 72,
     color: COLORS.primary,
     letterSpacing: -3,
