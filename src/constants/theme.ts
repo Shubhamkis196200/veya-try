@@ -124,30 +124,37 @@ export const darkTheme = {
     small: {
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.25,
+      shadowOpacity: 0.15,
       shadowRadius: 4,
-      elevation: 3,
+      elevation: 2,
     },
     medium: {
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-      elevation: 6,
+      shadowOpacity: 0.2,
+      shadowRadius: 12,
+      elevation: 4,
     },
     large: {
       shadowColor: palette.purple[500],
       shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.25,
-      shadowRadius: 16,
-      elevation: 12,
+      shadowOpacity: 0.2,
+      shadowRadius: 24,
+      elevation: 8,
     },
     glow: {
       shadowColor: palette.purple[500],
       shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.5,
+      shadowOpacity: 0.3,
       shadowRadius: 20,
       elevation: 0,
+    },
+    card: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 2,
     },
   },
 };
@@ -225,30 +232,37 @@ export const lightTheme = {
     small: {
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.08,
+      shadowOpacity: 0.06,
       shadowRadius: 3,
-      elevation: 2,
+      elevation: 1,
     },
     medium: {
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 6,
-      elevation: 4,
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 3,
     },
     large: {
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.12,
-      shadowRadius: 12,
-      elevation: 8,
+      shadowOpacity: 0.1,
+      shadowRadius: 16,
+      elevation: 5,
     },
     glow: {
       shadowColor: palette.purple[500],
       shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.2,
+      shadowOpacity: 0.15,
       shadowRadius: 12,
       elevation: 0,
+    },
+    card: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.06,
+      shadowRadius: 6,
+      elevation: 2,
     },
   },
 };
@@ -263,77 +277,98 @@ export const SPACING = {
   lg: 24,
   xl: 32,
   xxl: 48,
+  xxxl: 64,
 } as const;
 
 export const RADIUS = {
   sm: 8,
   md: 12,
   lg: 16,
-  xl: 24,
-  xxl: 32,
+  xl: 20,
+  xxl: 28,
   full: 999,
 } as const;
 
+// Animation timings for smooth 60fps
+export const ANIMATION = {
+  fast: 200,
+  normal: 300,
+  slow: 400,
+  verySlow: 600,
+  spring: {
+    damping: 15,
+    stiffness: 150,
+  },
+  timing: {
+    easeInOut: [0.4, 0.0, 0.2, 1],
+    easeOut: [0.0, 0.0, 0.2, 1],
+    easeIn: [0.4, 0.0, 1, 1],
+  },
+} as const;
+
 export const FONTS = {
-  // Display
+  // Display - Premium, refined typography
   h1: {
-    fontSize: 32,
+    fontSize: 34,
     fontWeight: '300' as const,
-    letterSpacing: -0.5,
-    lineHeight: 40,
+    letterSpacing: -0.8,
+    lineHeight: 42,
   },
   h2: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '400' as const,
-    letterSpacing: -0.3,
-    lineHeight: 32,
+    letterSpacing: -0.5,
+    lineHeight: 34,
   },
   h3: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '500' as const,
-    letterSpacing: -0.2,
-    lineHeight: 28,
+    letterSpacing: -0.3,
+    lineHeight: 30,
   },
   
-  // Body
+  // Body - Comfortable reading
   bodyLarge: {
     fontSize: 18,
     fontWeight: '400' as const,
-    lineHeight: 28,
+    lineHeight: 30,
+    letterSpacing: -0.1,
   },
   body: {
     fontSize: 16,
     fontWeight: '400' as const,
-    lineHeight: 24,
+    lineHeight: 26,
+    letterSpacing: -0.1,
   },
   bodyMedium: {
     fontSize: 16,
     fontWeight: '500' as const,
-    lineHeight: 24,
+    lineHeight: 26,
+    letterSpacing: -0.1,
   },
   bodySmall: {
     fontSize: 14,
     fontWeight: '400' as const,
-    lineHeight: 20,
+    lineHeight: 22,
   },
   
   // Utility
   caption: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '400' as const,
-    lineHeight: 16,
+    lineHeight: 18,
   },
   overline: {
     fontSize: 11,
     fontWeight: '600' as const,
-    letterSpacing: 1,
+    letterSpacing: 1.2,
     textTransform: 'uppercase' as const,
     lineHeight: 16,
   },
   button: {
     fontSize: 16,
     fontWeight: '600' as const,
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
 } as const;
 

@@ -1,7 +1,9 @@
 import { Tabs } from 'expo-router';
 import { View, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING } from '../../src/constants/theme';
+import { BlurView } from 'expo-blur';
+import Animated, { FadeIn, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import { COLORS, SPACING, ANIMATION, RADIUS } from '../../src/constants/theme';
 
 export default function TabLayout() {
   return (
@@ -14,6 +16,14 @@ export default function TabLayout() {
           tabBarInactiveTintColor: COLORS.textMuted,
           tabBarShowLabel: true,
           tabBarLabelStyle: styles.tabLabel,
+          tabBarHideOnKeyboard: true,
+          tabBarBackground: () => (
+            <BlurView 
+              intensity={80}
+              tint="dark"
+              style={StyleSheet.absoluteFill}
+            />
+          ),
         }}
       >
         <Tabs.Screen
@@ -21,10 +31,16 @@ export default function TabLayout() {
           options={{
             title: 'Today',
             tabBarIcon: ({ color, focused }) => (
-              <View style={styles.iconWrap}>
-                <Ionicons name={focused ? 'sunny' : 'sunny-outline'} size={22} color={color} />
-                {focused && <View style={[styles.dot, { backgroundColor: color }]} />}
-              </View>
+              <Animated.View 
+                style={styles.iconWrap}
+                entering={FadeIn.duration(ANIMATION.fast)}
+              >
+                <Ionicons 
+                  name={focused ? 'sunny' : 'sunny-outline'} 
+                  size={24} 
+                  color={color} 
+                />
+              </Animated.View>
             ),
           }}
         />
@@ -33,10 +49,16 @@ export default function TabLayout() {
           options={{
             title: 'Forecast',
             tabBarIcon: ({ color, focused }) => (
-              <View style={styles.iconWrap}>
-                <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={22} color={color} />
-                {focused && <View style={[styles.dot, { backgroundColor: color }]} />}
-              </View>
+              <Animated.View 
+                style={styles.iconWrap}
+                entering={FadeIn.duration(ANIMATION.fast)}
+              >
+                <Ionicons 
+                  name={focused ? 'calendar' : 'calendar-outline'} 
+                  size={24} 
+                  color={color} 
+                />
+              </Animated.View>
             ),
           }}
         />
@@ -45,10 +67,16 @@ export default function TabLayout() {
           options={{
             title: 'Ask',
             tabBarIcon: ({ color, focused }) => (
-              <View style={styles.iconWrap}>
-                <Ionicons name={focused ? 'chatbubble' : 'chatbubble-outline'} size={22} color={color} />
-                {focused && <View style={[styles.dot, { backgroundColor: color }]} />}
-              </View>
+              <Animated.View 
+                style={styles.iconWrap}
+                entering={FadeIn.duration(ANIMATION.fast)}
+              >
+                <Ionicons 
+                  name={focused ? 'chatbubble' : 'chatbubble-outline'} 
+                  size={24} 
+                  color={color} 
+                />
+              </Animated.View>
             ),
           }}
         />
@@ -57,10 +85,16 @@ export default function TabLayout() {
           options={{
             title: 'Gems',
             tabBarIcon: ({ color, focused }) => (
-              <View style={styles.iconWrap}>
-                <Ionicons name={focused ? 'diamond' : 'diamond-outline'} size={22} color={color} />
-                {focused && <View style={[styles.dot, { backgroundColor: color }]} />}
-              </View>
+              <Animated.View 
+                style={styles.iconWrap}
+                entering={FadeIn.duration(ANIMATION.fast)}
+              >
+                <Ionicons 
+                  name={focused ? 'diamond' : 'diamond-outline'} 
+                  size={24} 
+                  color={color} 
+                />
+              </Animated.View>
             ),
           }}
         />
@@ -69,10 +103,16 @@ export default function TabLayout() {
           options={{
             title: 'Profile',
             tabBarIcon: ({ color, focused }) => (
-              <View style={styles.iconWrap}>
-                <Ionicons name={focused ? 'person' : 'person-outline'} size={22} color={color} />
-                {focused && <View style={[styles.dot, { backgroundColor: color }]} />}
-              </View>
+              <Animated.View 
+                style={styles.iconWrap}
+                entering={FadeIn.duration(ANIMATION.fast)}
+              >
+                <Ionicons 
+                  name={focused ? 'person' : 'person-outline'} 
+                  size={24} 
+                  color={color} 
+                />
+              </Animated.View>
             ),
           }}
         />
@@ -86,31 +126,27 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tabBar: {
-    backgroundColor: COLORS.backgroundCard,
+    backgroundColor: 'transparent',
     borderTopWidth: 0,
-    paddingTop: 8,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 12,
-    height: Platform.OS === 'ios' ? 88 : 68,
+    paddingTop: SPACING.md,
+    paddingBottom: Platform.OS === 'ios' ? 32 : SPACING.md,
+    height: Platform.OS === 'ios' ? 90 : 70,
     elevation: 0,
+    position: 'absolute',
     shadowColor: COLORS.textPrimary,
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
   },
   tabLabel: {
     fontSize: 11,
-    fontWeight: '500',
-    marginTop: 4,
+    fontWeight: '600',
+    marginTop: 6,
+    letterSpacing: 0.3,
   },
   iconWrap: {
     alignItems: 'center',
-    position: 'relative',
-  },
-  dot: {
-    position: 'absolute',
-    top: -6,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+    justifyContent: 'center',
+    paddingTop: 4,
   },
 });

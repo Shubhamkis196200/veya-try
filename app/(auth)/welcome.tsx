@@ -10,16 +10,18 @@ import Animated, {
   withSpring, 
   withDelay,
   FadeIn,
+  FadeInDown,
+  FadeInUp,
 } from 'react-native-reanimated';
-import { COLORS, FONTS, SPACING, RADIUS } from '../../src/constants/theme';
+import { COLORS, FONTS, SPACING, RADIUS, ANIMATION } from '../../src/constants/theme';
 import { StarField } from '../../src/components';
 
 const { width, height } = Dimensions.get('window');
 
 const features = [
-  { icon: 'sparkles', title: 'Daily Guidance', desc: 'Personalized cosmic insights' },
-  { icon: 'moon', title: 'Moon Phases', desc: 'Lunar energy tracking' },
-  { icon: 'heart', title: 'Love Match', desc: 'Zodiac compatibility' },
+  { icon: 'sparkles', title: 'Daily Guidance', desc: 'Personalized cosmic insights tailored for you' },
+  { icon: 'moon', title: 'Moon Phases', desc: 'Track lunar energy and its influence' },
+  { icon: 'heart', title: 'Love Match', desc: 'Deep zodiac compatibility readings' },
 ];
 
 export default function WelcomeScreen() {
