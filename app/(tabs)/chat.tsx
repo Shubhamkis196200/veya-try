@@ -18,6 +18,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../src/hooks/useTheme';
+import { useVoiceInput } from '../../src/hooks/useVoiceInput';
+import { VoiceButton } from '../../src/components/VoiceButton';
 import { useAuthStore } from '../../src/stores';
 import { chatWithVeya } from '../../src/services/ai';
 import { getMemoryManager } from '../../src/lib/memory';
