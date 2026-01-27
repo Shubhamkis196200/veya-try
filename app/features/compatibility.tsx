@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { COLORS, FONTS, SPACING, RADIUS, ZODIAC } from '../../src/constants/theme';
 
 const { width } = Dimensions.get('window');
@@ -106,18 +107,23 @@ export default function CompatibilityScreen() {
       }} />
       
       <SafeAreaView style={styles.container} edges={['bottom']}>
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+        <ScrollView 
+          style={styles.scrollView} 
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Header */}
-          <View style={styles.header}>
+          <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
             <Text style={styles.title}>Zodiac Compatibility</Text>
             <Text style={styles.subtitle}>Discover your cosmic connection</Text>
-          </View>
+          </Animated.View>
 
           {/* Selection Cards */}
-          <View style={styles.selectionRow}>
+          <Animated.View entering={FadeInDown.duration(400).delay(100)} style={styles.selectionRow}>
             <TouchableOpacity 
               style={[styles.signCard, selectingFor === 1 && styles.signCardActive]}
               onPress={() => setSelectingFor(1)}
+              activeOpacity={0.7}
             >
               {sign1 ? (
                 <>
@@ -139,6 +145,7 @@ export default function CompatibilityScreen() {
             <TouchableOpacity 
               style={[styles.signCard, selectingFor === 2 && styles.signCardActive]}
               onPress={() => setSelectingFor(2)}
+              activeOpacity={0.7}
             >
               {sign2 ? (
                 <>
@@ -152,16 +159,16 @@ export default function CompatibilityScreen() {
                 </>
               )}
             </TouchableOpacity>
-          </View>
+          </Animated.View>
 
           {/* Sign Selector */}
           {selectingFor && (
-            <View style={styles.selectorSection}>
+            <Animated.View entering={FadeIn.duration(300)} style={styles.selectorSection}>
               <Text style={styles.selectorTitle}>
                 Select {selectingFor === 1 ? 'Your' : 'Their'} Sign
               </Text>
               <View style={styles.zodiacGrid}>
-                {zodiacSigns.map((sign) => (
+                {zodiacSigns.map((sign, idx) => (
                   <TouchableOpacity
                     key={sign.key}
                     style={[
@@ -169,33 +176,40 @@ export default function CompatibilityScreen() {
                       (selectingFor === 1 ? sign1 : sign2) === sign.key && styles.zodiacItemSelected
                     ]}
                     onPress={() => handleSelectSign(sign.key)}
+                    activeOpacity={0.7}
                   >
                     <Text style={styles.zodiacSymbol}>{sign.symbol}</Text>
                     <Text style={styles.zodiacName}>{sign.name}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
-            </View>
+            </Animated.View>
           )}
 
           {/* Check Button */}
           {sign1 && sign2 && !selectingFor && !result && (
-            <TouchableOpacity style={styles.checkButton} onPress={checkCompatibility}>
-              <LinearGradient
-                colors={['#E85A8F', '#9B8FD9']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.checkButtonGradient}
+            <Animated.View entering={FadeIn.duration(300)}>
+              <TouchableOpacity 
+                style={styles.checkButton} 
+                onPress={checkCompatibility}
+                activeOpacity={0.8}
               >
-                <Text style={styles.checkButtonText}>Check Compatibility</Text>
-                <Ionicons name="sparkles" size={20} color="#FFF" />
-              </LinearGradient>
-            </TouchableOpacity>
+                <LinearGradient
+                  colors={['#E85A8F', '#9B8FD9']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.checkButtonGradient}
+                >
+                  <Text style={styles.checkButtonText}>Check Compatibility</Text>
+                  <Ionicons name="sparkles" size={20} color="#FFF" />
+                </LinearGradient>
+              </TouchableOpacity>
+            </Animated.View>
           )}
 
           {/* Result */}
           {result && sign1 && sign2 && (
-            <View style={styles.resultSection}>
+            <Animated.View entering={FadeInDown.duration(500)} style={styles.resultSection}>
               <LinearGradient
                 colors={['rgba(232, 90, 143, 0.1)', 'rgba(155, 143, 217, 0.1)']}
                 style={styles.resultCard}
@@ -246,11 +260,12 @@ export default function CompatibilityScreen() {
                 <TouchableOpacity 
                   style={styles.resetButton}
                   onPress={() => { setSign1(null); setSign2(null); setResult(null); }}
+                  activeOpacity={0.7}
                 >
                   <Text style={styles.resetButtonText}>Try Another Pair</Text>
                 </TouchableOpacity>
               </LinearGradient>
-            </View>
+            </Animated.View>
           )}
         </ScrollView>
       </SafeAreaView>
@@ -277,16 +292,18 @@ const styles = StyleSheet.create({
   },
   signCard: {
     width: (width - SPACING.lg * 2 - SPACING.md * 2 - 50) / 2,
-    aspectRatio: 1,
+    height: 140,
     backgroundColor: COLORS.backgroundCard,
     borderRadius: RADIUS.xl,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: COLORS.border,
+    minHeight: 48,
   },
   signCardActive: {
     borderColor: COLORS.primary,
+    backgroundColor: COLORS.primaryMuted,
   },
   signSymbol: { fontSize: 48, marginBottom: SPACING.xs },
   signName: { ...FONTS.bodyMedium, color: COLORS.textPrimary },
@@ -298,6 +315,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.intent.love + '20',
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 48,
+    minWidth: 48,
   },
 
   // Selector
@@ -317,10 +336,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,
+    minHeight: 48,
   },
   zodiacItemSelected: {
     backgroundColor: COLORS.primaryMuted,
     borderColor: COLORS.primary,
+    borderWidth: 2,
   },
   zodiacSymbol: { fontSize: 24 },
   zodiacName: { ...FONTS.caption, color: COLORS.textMuted, marginTop: 2 },
@@ -334,6 +355,7 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
     paddingVertical: SPACING.md,
     borderRadius: RADIUS.lg,
+    minHeight: 48,
   },
   checkButtonText: { ...FONTS.bodyMedium, color: '#FFF' },
 
@@ -341,27 +363,33 @@ const styles = StyleSheet.create({
   resultSection: { marginBottom: SPACING.xl },
   resultCard: {
     borderRadius: RADIUS.xl,
-    padding: SPACING.xl,
+    padding: SPACING.lg,
     borderWidth: 1,
     borderColor: COLORS.borderGold,
   },
   resultHeader: { alignItems: 'center', marginBottom: SPACING.lg },
-  resultTitle: { ...FONTS.h3, color: COLORS.textPrimary },
+  resultTitle: { ...FONTS.h3, color: COLORS.textPrimary, textAlign: 'center' },
   scoreContainer: { alignItems: 'center', marginBottom: SPACING.md },
   scoreValue: { fontSize: 64, fontWeight: '200' },
-  scoreLabel: { ...FONTS.caption, color: COLORS.textMuted },
+  scoreLabel: { ...FONTS.caption, color: COLORS.textMuted, marginTop: SPACING.xs },
   scoreBar: {
     height: 8,
     backgroundColor: COLORS.border,
-    borderRadius: 4,
+    borderRadius: RADIUS.sm,
     overflow: 'hidden',
     marginBottom: SPACING.lg,
   },
   scoreBarFill: {
     height: '100%',
-    borderRadius: 4,
+    borderRadius: RADIUS.sm,
   },
-  resultDesc: { ...FONTS.body, color: COLORS.textSecondary, textAlign: 'center', marginBottom: SPACING.xl },
+  resultDesc: { 
+    ...FONTS.body, 
+    color: COLORS.textSecondary, 
+    textAlign: 'center', 
+    marginBottom: SPACING.xl,
+    lineHeight: 24,
+  },
 
   // Areas
   areasContainer: {
@@ -369,14 +397,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     marginBottom: SPACING.xl,
   },
-  areaItem: { alignItems: 'center' },
+  areaItem: { alignItems: 'center', minWidth: 48 },
   areaLabel: { ...FONTS.caption, color: COLORS.textMuted, marginTop: SPACING.xs },
-  areaScore: { ...FONTS.bodyMedium, color: COLORS.textPrimary },
+  areaScore: { ...FONTS.bodyMedium, color: COLORS.textPrimary, marginTop: 2 },
 
   // Reset
   resetButton: {
     alignItems: 'center',
-    paddingVertical: SPACING.sm,
+    paddingVertical: SPACING.md,
+    minHeight: 48,
+    justifyContent: 'center',
   },
   resetButtonText: { ...FONTS.body, color: COLORS.primary },
 });

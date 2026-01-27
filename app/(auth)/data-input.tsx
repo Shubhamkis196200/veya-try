@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { COLORS, FONTS, SPACING, RADIUS } from '../../src/constants/theme';
 import { useAppStore } from '../../src/stores';
 
@@ -50,24 +51,27 @@ export default function DataInputScreen() {
           keyboardShouldPersistTaps="handled"
         >
           {/* Back Button */}
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
-          </TouchableOpacity>
+          <Animated.View entering={FadeIn.duration(300)}>
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={() => router.back()}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
+            </TouchableOpacity>
+          </Animated.View>
 
           {/* Header */}
-          <View style={styles.header}>
+          <Animated.View entering={FadeInDown.duration(400).delay(100)} style={styles.header}>
             <Text style={styles.overline}>STEP 3 OF 3</Text>
             <Text style={styles.title}>Your Cosmic Profile</Text>
             <Text style={styles.subtitle}>
               Enter your birth details for personalized insights
             </Text>
-          </View>
+          </Animated.View>
 
           {/* Form */}
-          <View style={styles.form}>
+          <Animated.View entering={FadeInDown.duration(400).delay(200)} style={styles.form}>
             {/* Name */}
             <View style={styles.field}>
               <Text style={styles.label}>YOUR NAME</Text>
@@ -139,10 +143,11 @@ export default function DataInputScreen() {
                 autoCapitalize="words"
               />
             </View>
-          </View>
+          </Animated.View>
 
           {/* CTA */}
-          <TouchableOpacity 
+          <Animated.View entering={FadeInDown.duration(400).delay(300)}>
+            <TouchableOpacity 
             style={[styles.button, !isValid && styles.buttonDisabled]}
             onPress={handleContinue}
             activeOpacity={0.8}
@@ -151,6 +156,7 @@ export default function DataInputScreen() {
             <Text style={styles.buttonText}>Generate My Cosmic Profile</Text>
             <Ionicons name="sparkles" size={20} color={COLORS.textInverse} />
           </TouchableOpacity>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -218,6 +224,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     ...FONTS.body,
     color: COLORS.textPrimary,
+    minHeight: 48,
   },
   dateRow: {
     flexDirection: 'row',
@@ -240,9 +247,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     borderRadius: RADIUS.lg,
     gap: SPACING.sm,
+    minHeight: 56,
   },
   buttonDisabled: {
     backgroundColor: COLORS.textSecondary,
+    opacity: 0.5,
   },
   buttonText: {
     ...FONTS.bodyMedium,

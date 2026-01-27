@@ -1,9 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONTS, SPACING } from '../../src/constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withTiming, 
+  withRepeat, 
+  withSequence,
+  Easing,
+  FadeIn,
+  FadeInDown,
+} from 'react-native-reanimated';
+import { COLORS, FONTS, SPACING, RADIUS } from '../../src/constants/theme';
 import { useAppStore, useAuthStore } from '../../src/stores';
 import { supabase } from '../../src/lib/supabase';
 import { getZodiacSign } from '../../src/utils/zodiac';
@@ -21,28 +32,31 @@ export default function GeneratingScreen() {
   const { onboardingData, clearOnboardingData, setIsGenerating } = useAppStore();
   const { updateProfile } = useAuthStore();
   
-  const spinAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const messageIndex = useRef(0);
+  const rotation = useSharedValue(0);
+  const scale = useSharedValue(0.8);
   const [currentMessage, setCurrentMessage] = useState(loadingMessages[0]);
+  const messageIndex = useRef(0);
 
   useEffect(() => {
-    // Spin animation
-    Animated.loop(
-      Animated.timing(spinAnim, {
-        toValue: 1,
-        duration: 2000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    ).start();
+    // Rotation animation
+    rotation.value = withRepeat(
+      withTiming(360, { duration: 3000, easing: Easing.linear }),
+      -1,
+      false
+    );
 
-    // Fade in
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 500,
-      useNativeDriver: true,
-    }).start();
+    // Scale animation
+    scale.value = withSequence(
+      withTiming(1, { duration: 800, easing: Easing.out(Easing.cubic) }),
+      withRepeat(
+        withSequence(
+          withTiming(1.05, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1,
+        true
+      )
+    );
 
     // Cycle messages
     const messageInterval = setInterval(() => {
@@ -99,24 +113,44 @@ export default function GeneratingScreen() {
     }
   };
 
-  const spin = spinAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
+  const animatedIconStyle = useAnimatedStyle(() => ({
+    transform: [
+      { rotate: `${rotation.value}deg` },
+      { scale: scale.value }
+    ],
+  }));
 
   return (
     <SafeAreaView style={styles.container}>
-      <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-        {/* Spinning icon */}
-        <Animated.View style={[styles.iconContainer, { transform: [{ rotate: spin }] }]}>
-          <Ionicons name="sparkles" size={60} color={COLORS.primary} />
-        </Animated.View>
+      <LinearGradient
+        colors={[COLORS.background, COLORS.backgroundSecondary, COLORS.background]}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+      
+      <Animated.View entering={FadeIn.duration(500)} style={styles.content}>
+        {/* Spinning icon with gradient background */}
+        <View style={styles.iconWrapper}>
+          <LinearGradient
+            colors={['rgba(139, 127, 217, 0.2)', 'rgba(201, 169, 98, 0.2)']}
+            style={styles.iconBackground}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Animated.View style={animatedIconStyle}>
+              <Ionicons name="sparkles" size={60} color={COLORS.primary} />
+            </Animated.View>
+          </LinearGradient>
+        </View>
 
         {/* Loading message */}
-        <Text style={styles.message}>{currentMessage}</Text>
+        <Animated.View entering={FadeInDown.duration(600).delay(200)}>
+          <Text style={styles.message}>{currentMessage}</Text>
+        </Animated.View>
         
         {/* Progress dots */}
-        <View style={styles.dots}>
+        <Animated.View entering={FadeInDown.duration(600).delay(400)} style={styles.dots}>
           {[0, 1, 2].map((i) => (
             <View 
               key={i} 
@@ -126,7 +160,7 @@ export default function GeneratingScreen() {
               ]} 
             />
           ))}
-        </View>
+        </Animated.View>
       </Animated.View>
     </SafeAreaView>
   );
@@ -143,24 +177,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.xl,
   },
-  iconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: COLORS.primaryMuted,
+  iconWrapper: {
+    marginBottom: SPACING.xl,
+  },
+  iconBackground: {
+    width: 160,
+    height: 160,
+    borderRadius: 80,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING.xl,
+    borderWidth: 1,
+    borderColor: COLORS.borderPurple,
   },
   message: {
     ...FONTS.h3,
     color: COLORS.textPrimary,
     textAlign: 'center',
     marginBottom: SPACING.lg,
+    marginTop: SPACING.md,
   },
   dots: {
     flexDirection: 'row',
     gap: SPACING.sm,
+    marginTop: SPACING.md,
   },
   dot: {
     width: 8,
@@ -170,5 +209,8 @@ const styles = StyleSheet.create({
   },
   dotActive: {
     backgroundColor: COLORS.primary,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
 });

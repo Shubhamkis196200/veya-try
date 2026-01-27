@@ -161,7 +161,7 @@ export default function AffirmationsScreen() {
         />
 
         {/* Category Selector */}
-        <View style={styles.categories}>
+        <Animated.View entering={FadeIn.duration(400)} style={styles.categories}>
           {categories.map((cat) => (
             <TouchableOpacity
               key={cat.key}
@@ -171,6 +171,7 @@ export default function AffirmationsScreen() {
                 category === cat.key && { borderColor: cat.color },
               ]}
               onPress={() => setCategory(cat.key)}
+              activeOpacity={0.7}
             >
               <Ionicons 
                 name={cat.icon as any} 
@@ -185,7 +186,7 @@ export default function AffirmationsScreen() {
               </Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </Animated.View>
 
         {/* Affirmation Display */}
         <View style={styles.affirmationContainer}>
@@ -201,6 +202,7 @@ export default function AffirmationsScreen() {
           <TouchableOpacity 
             style={[styles.actionButton, styles.actionButtonSecondary]}
             onPress={toggleFavorite}
+            activeOpacity={0.7}
           >
             <Ionicons 
               name={isFavorite ? 'heart' : 'heart-outline'} 
@@ -212,6 +214,7 @@ export default function AffirmationsScreen() {
           <TouchableOpacity 
             style={styles.mainActionButton}
             onPress={generateAffirmation}
+            activeOpacity={0.8}
           >
             <LinearGradient
               colors={[currentCategory?.color || COLORS.primary, COLORS.primary]}
@@ -227,6 +230,7 @@ export default function AffirmationsScreen() {
           <TouchableOpacity 
             style={[styles.actionButton, styles.actionButtonSecondary]}
             onPress={shareAffirmation}
+            activeOpacity={0.7}
           >
             <Ionicons name="share-outline" size={24} color={COLORS.textMuted} />
           </TouchableOpacity>
@@ -276,6 +280,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.backgroundCard,
     borderWidth: 1,
     borderColor: COLORS.border,
+    minHeight: 48,
   },
   categoryButtonActive: {
     backgroundColor: COLORS.background,
@@ -330,11 +335,13 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   actionButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 48,
+    minWidth: 48,
   },
   actionButtonSecondary: {
     backgroundColor: COLORS.backgroundCard,
@@ -343,7 +350,7 @@ const styles = StyleSheet.create({
   },
   mainActionButton: {
     flex: 1,
-    maxWidth: 200,
+    maxWidth: 220,
   },
   mainActionGradient: {
     flexDirection: 'row',
@@ -352,6 +359,7 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
     paddingVertical: SPACING.md,
     borderRadius: RADIUS.full,
+    minHeight: 48,
   },
   mainActionText: {
     ...FONTS.bodyMedium,

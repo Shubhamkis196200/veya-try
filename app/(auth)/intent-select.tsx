@@ -256,11 +256,13 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: RADIUS.xl,
     overflow: 'hidden',
+    minHeight: 48,
   },
   cardGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: SPACING.md,
+    minHeight: 88,
   },
   iconContainer: {
     width: 52,

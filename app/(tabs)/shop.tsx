@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Dimensions
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { COLORS, FONTS, SPACING, RADIUS } from '../../src/constants/theme';
 
 const { width } = Dimensions.get('window');
@@ -105,13 +106,13 @@ export default function ShopScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <View style={styles.header}>
+        <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
           <Text style={styles.title}>Gem Shop</Text>
           <Text style={styles.subtitle}>Lucky stones for your journey</Text>
-        </View>
+        </Animated.View>
 
         {/* Featured Gem */}
-        <View style={styles.featuredContainer}>
+        <Animated.View entering={FadeInDown.duration(400).delay(100)} style={styles.featuredContainer}>
           <LinearGradient
             colors={['rgba(201, 169, 98, 0.15)', 'rgba(139, 126, 200, 0.1)']}
             start={{ x: 0, y: 0 }}
@@ -155,9 +156,10 @@ export default function ShopScreen() {
               <Ionicons name="arrow-forward" size={16} color={COLORS.textInverse} />
             </TouchableOpacity>
           </LinearGradient>
-        </View>
+        </Animated.View>
 
         {/* Category Filter */}
+        <Animated.View entering={FadeIn.duration(400).delay(200)}>
         <ScrollView 
           horizontal 
           showsHorizontalScrollIndicator={false}
@@ -172,6 +174,7 @@ export default function ShopScreen() {
                 activeCategory === category && styles.categoryPillActive
               ]}
               onPress={() => setActiveCategory(category)}
+              activeOpacity={0.7}
             >
               <Text style={[
                 styles.categoryText,
@@ -182,11 +185,16 @@ export default function ShopScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
+        </Animated.View>
 
         {/* Gemstone Grid */}
-        <View style={styles.gemGrid}>
-          {filteredGems.map((gem) => (
-            <TouchableOpacity key={gem.id} style={styles.gemCard}>
+        <Animated.View entering={FadeInDown.duration(500).delay(300)} style={styles.gemGrid}>
+          {filteredGems.map((gem, idx) => (
+            <TouchableOpacity 
+              key={gem.id} 
+              style={styles.gemCard}
+              activeOpacity={0.7}
+            >
               <View style={styles.gemCardInner}>
                 {gem.recommended && (
                   <View style={styles.recommendedTag}>
@@ -210,10 +218,10 @@ export default function ShopScreen() {
               </View>
             </TouchableOpacity>
           ))}
-        </View>
+        </Animated.View>
 
         {/* Info Section */}
-        <View style={styles.infoSection}>
+        <Animated.View entering={FadeInDown.duration(500).delay(400)} style={styles.infoSection}>
           <View style={styles.infoCard}>
             <Ionicons name="information-circle-outline" size={24} color={COLORS.primary} />
             <View style={styles.infoContent}>
@@ -223,10 +231,10 @@ export default function ShopScreen() {
               </Text>
             </View>
           </View>
-        </View>
+        </Animated.View>
 
         {/* Zodiac Matches */}
-        <View style={styles.section}>
+        <Animated.View entering={FadeInDown.duration(500).delay(500)} style={styles.section}>
           <Text style={styles.sectionTitle}>YOUR ZODIAC MATCHES</Text>
           <View style={styles.zodiacRow}>
             <View style={styles.zodiacItem}>
@@ -240,7 +248,7 @@ export default function ShopScreen() {
               <Text style={styles.zodiacGem}>Sapphire, Peridot</Text>
             </View>
           </View>
-        </View>
+        </Animated.View>
       </ScrollView>
     </SafeAreaView>
   );
