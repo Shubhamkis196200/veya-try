@@ -207,7 +207,7 @@ export default function ChatScreen() {
     transcript, 
     partialTranscript,
     error: voiceError,
-    isAvailable: voiceAvailable,
+    voiceAvailable: voiceAvailable,
     startListening, 
     stopListening,
     clearTranscript,

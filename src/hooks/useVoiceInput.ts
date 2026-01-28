@@ -1,14 +1,23 @@
 /**
  * VOICE INPUT HOOK
  * Real speech-to-text for chat input using expo-speech-recognition
+ * With safe error handling for Expo Go
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import {
-  ExpoSpeechRecognitionModule,
-  useSpeechRecognitionEvent,
-} from 'expo-speech-recognition';
+
+// Safe import with fallback
+let ExpoSpeechRecognitionModule: any = null;
+let useSpeechRecognitionEvent: any = () => {};
+
+try {
+  const speechModule = require('expo-speech-recognition');
+  ExpoSpeechRecognitionModule = speechModule.ExpoSpeechRecognitionModule;
+  useSpeechRecognitionEvent = speechModule.useSpeechRecognitionEvent;
+} catch (e) {
+  console.warn('expo-speech-recognition not available');
+}
 
 interface VoiceInputState {
   isListening: boolean;
@@ -24,78 +33,86 @@ export function useVoiceInput() {
     transcript: '',
     partialTranscript: '',
     error: null,
-    isAvailable: true,
+    isAvailable: !!ExpoSpeechRecognitionModule,
   });
 
   // Track if we've requested permission
   const permissionRequested = useRef(false);
 
-  // Handle speech recognition results
-  useSpeechRecognitionEvent('result', (event: any) => {
-    const resultIndex = event.resultIndex ?? 0;
-    const result = event.results?.[resultIndex];
-    if (result) {
-      const firstResult = Array.isArray(result) ? result[0] : result;
-      const text = firstResult?.transcript || '';
-      const isFinal = firstResult?.isFinal ?? result?.isFinal ?? false;
-      
-      if (isFinal) {
-        setState(prev => ({
-          ...prev,
-          transcript: text,
-          partialTranscript: '',
-        }));
-      } else {
-        setState(prev => ({
-          ...prev,
-          partialTranscript: text,
-        }));
+  // Safe event handlers - only register if module exists
+  useEffect(() => {
+    if (!ExpoSpeechRecognitionModule) return;
+    
+    // Events are handled via useSpeechRecognitionEvent if available
+  }, []);
+
+  // Handle speech recognition results - wrapped in try/catch
+  try {
+    useSpeechRecognitionEvent('result', (event: any) => {
+      const resultIndex = event.resultIndex ?? 0;
+      const result = event.results?.[resultIndex];
+      if (result) {
+        const firstResult = Array.isArray(result) ? result[0] : result;
+        const text = firstResult?.transcript || '';
+        const isFinal = firstResult?.isFinal ?? result?.isFinal ?? false;
+        
+        if (isFinal) {
+          setState(prev => ({
+            ...prev,
+            transcript: text,
+            partialTranscript: '',
+          }));
+        } else {
+          setState(prev => ({
+            ...prev,
+            partialTranscript: text,
+          }));
+        }
       }
-    }
-  });
+    });
 
-  // Handle speech recognition errors
-  useSpeechRecognitionEvent('error', (event) => {
-    console.error('Speech recognition error:', event.error);
-    let errorMessage = 'Voice recognition failed';
-    
-    switch (event.error) {
-      case 'not-allowed':
-        errorMessage = 'Microphone permission denied';
-        break;
-      case 'no-speech':
-        errorMessage = 'No speech detected';
-        break;
-      case 'network':
-        errorMessage = 'Network error';
-        break;
-    }
-    
-    setState(prev => ({
-      ...prev,
-      isListening: false,
-      error: errorMessage,
-    }));
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-  });
+    useSpeechRecognitionEvent('error', (event: any) => {
+      console.error('Speech recognition error:', event?.error);
+      let errorMessage = 'Voice recognition failed';
+      
+      switch (event?.error) {
+        case 'not-allowed':
+          errorMessage = 'Microphone permission denied';
+          break;
+        case 'no-speech':
+          errorMessage = 'No speech detected';
+          break;
+        case 'network':
+          errorMessage = 'Network error';
+          break;
+      }
+      
+      setState(prev => ({
+        ...prev,
+        isListening: false,
+        error: errorMessage,
+      }));
+    });
 
-  // Handle speech recognition end
-  useSpeechRecognitionEvent('end', () => {
-    setState(prev => ({ ...prev, isListening: false }));
-  });
+    useSpeechRecognitionEvent('end', () => {
+      setState(prev => ({ ...prev, isListening: false }));
+    });
 
-  // Handle speech recognition start
-  useSpeechRecognitionEvent('start', () => {
-    setState(prev => ({ 
-      ...prev, 
-      isListening: true, 
-      error: null,
-      partialTranscript: '',
-    }));
-  });
+    useSpeechRecognitionEvent('start', () => {
+      setState(prev => ({ 
+        ...prev, 
+        isListening: true, 
+        error: null,
+        partialTranscript: '',
+      }));
+    });
+  } catch (e) {
+    console.warn('Speech recognition events not available');
+  }
 
   // Request permissions
   const requestPermissions = async (): Promise<boolean> => {
+    if (!ExpoSpeechRecognitionModule) return false;
     try {
       const result = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
       return result.granted;
@@ -105,42 +122,36 @@ export function useVoiceInput() {
     }
   };
 
-  // Check availability
-  useEffect(() => {
-    const checkAvailability = async () => {
-      try {
-        const services = await ExpoSpeechRecognitionModule.getSupportedLocales({});
-        setState(prev => ({ 
-          ...prev, 
-          isAvailable: services.locales.length > 0 
-        }));
-      } catch (error) {
-        setState(prev => ({ ...prev, isAvailable: false }));
-      }
-    };
-    checkAvailability();
-  }, []);
-
   // Start listening
   const startListening = useCallback(async () => {
-    // Clear any previous transcript
-    setState(prev => ({ 
-      ...prev, 
-      transcript: '', 
-      partialTranscript: '',
-      error: null,
-    }));
-
-    const hasPermission = await requestPermissions();
-    if (!hasPermission) {
-      setState(prev => ({ ...prev, error: 'Microphone permission denied' }));
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    if (!ExpoSpeechRecognitionModule) {
+      setState(prev => ({ ...prev, error: 'Voice not available', isAvailable: false }));
       return;
     }
 
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      
+      // Request permission if not already done
+      if (!permissionRequested.current) {
+        const hasPermission = await requestPermissions();
+        permissionRequested.current = true;
+        if (!hasPermission) {
+          setState(prev => ({ ...prev, error: 'Microphone permission denied' }));
+          return;
+        }
+      }
+
+      // Clear previous state
+      setState(prev => ({ 
+        ...prev, 
+        transcript: '',
+        partialTranscript: '',
+        error: null,
+      }));
+
+      // Haptic feedback
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      // Start recognition
       await ExpoSpeechRecognitionModule.start({
         lang: 'en-US',
         interimResults: true,
@@ -153,53 +164,32 @@ export function useVoiceInput() {
       console.error('Start listening error:', error);
       setState(prev => ({ 
         ...prev, 
-        error: 'Failed to start voice recognition',
-        isListening: false,
+        isListening: false, 
+        error: 'Failed to start voice input',
       }));
     }
   }, []);
 
   // Stop listening
   const stopListening = useCallback(async () => {
+    if (!ExpoSpeechRecognitionModule) return;
+    
     try {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       await ExpoSpeechRecognitionModule.stop();
     } catch (error) {
       console.error('Stop listening error:', error);
     }
   }, []);
 
-  // Cancel listening (abort without result)
-  const cancelListening = useCallback(async () => {
-    try {
-      await ExpoSpeechRecognitionModule.abort();
-      setState(prev => ({
-        ...prev,
-        isListening: false,
-        partialTranscript: '',
-      }));
-    } catch (error) {
-      console.error('Cancel listening error:', error);
-    }
-  }, []);
-
   // Clear transcript
   const clearTranscript = useCallback(() => {
-    setState(prev => ({ 
-      ...prev, 
-      transcript: '', 
-      partialTranscript: '',
-      error: null,
-    }));
+    setState(prev => ({ ...prev, transcript: '', partialTranscript: '' }));
   }, []);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      try {
-        ExpoSpeechRecognitionModule.abort();
-      } catch {}
-    };
+  // Clear error
+  const clearError = useCallback(() => {
+    setState(prev => ({ ...prev, error: null }));
   }, []);
 
   return {
@@ -207,11 +197,11 @@ export function useVoiceInput() {
     transcript: state.transcript,
     partialTranscript: state.partialTranscript,
     error: state.error,
-    isAvailable: state.isAvailable,
+    voiceAvailable: state.isAvailable,
     startListening,
     stopListening,
-    cancelListening,
     clearTranscript,
+    clearError,
   };
 }
 
