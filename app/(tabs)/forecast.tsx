@@ -1,554 +1,154 @@
-import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+/**
+ * FORECAST SCREEN - ULTRA SIMPLE
+ * Weekly forecast without complex dependencies
+ */
+import { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { format, addDays, startOfWeek, addWeeks } from 'date-fns';
-import * as Haptics from 'expo-haptics';
-import Animated, { 
-  FadeIn, 
-  FadeInDown, 
-  FadeInUp,
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  withSequence,
-  interpolate,
-  Easing,
-} from 'react-native-reanimated';
-import { COLORS, FONTS, SPACING, RADIUS, ANIMATION, darkTheme } from '../../src/constants/theme';
-import { StarField } from '../../src/components';
 
-const { width } = Dimensions.get('window');
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const MOODS = ['✨', '🌙', '🔥', '💫', '⭐', '🌸', '🌟'];
 
-// Mock weekly forecast data
-const weeklyForecast = [
-  { day: 'Mon', date: 27, energy: 78, mood: '✨', highlight: 'Great for new beginnings' },
-  { day: 'Tue', date: 28, energy: 65, mood: '🌙', highlight: 'Rest and reflect' },
-  { day: 'Wed', date: 29, energy: 82, mood: '🔥', highlight: 'High creativity day' },
-  { day: 'Thu', date: 30, energy: 70, mood: '💫', highlight: 'Focus on relationships' },
-  { day: 'Fri', date: 31, energy: 88, mood: '⭐', highlight: 'Career opportunities' },
-  { day: 'Sat', date: 1, energy: 75, mood: '🌸', highlight: 'Self-care priority' },
-  { day: 'Sun', date: 2, energy: 80, mood: '🌟', highlight: 'Spiritual growth' },
+const FORECASTS = [
+  { energy: 78, highlight: 'Great for new beginnings' },
+  { energy: 65, highlight: 'Rest and reflect' },
+  { energy: 82, highlight: 'High creativity day' },
+  { energy: 70, highlight: 'Focus on relationships' },
+  { energy: 88, highlight: 'Career opportunities' },
+  { energy: 75, highlight: 'Self-care priority' },
+  { energy: 80, highlight: 'Spiritual growth' },
 ];
 
-// Mock monthly overview
-const monthlyOverview = {
-  theme: 'Transformation & Growth',
-  overview: 'February brings powerful energy for personal transformation. The stars align for major life decisions and spiritual breakthroughs.',
-  keyDates: [
-    { date: 'Feb 4', event: 'New Moon in Aquarius', type: 'moon' },
-    { date: 'Feb 14', event: 'Venus enters Aries', type: 'planet' },
-    { date: 'Feb 20', event: 'Full Moon in Virgo', type: 'moon' },
-  ],
-  areas: [
-    { name: 'Love', score: 85, trend: 'up' },
-    { name: 'Career', score: 72, trend: 'stable' },
-    { name: 'Health', score: 90, trend: 'up' },
-    { name: 'Finance', score: 68, trend: 'down' },
-  ],
-};
-
 export default function ForecastScreen() {
-  const [activeTab, setActiveTab] = useState<'weekly' | 'monthly'>('weekly');
   const [selectedDay, setSelectedDay] = useState(0);
+  const today = new Date();
   
-  // Animations
-  const tabIndicatorPosition = useSharedValue(0);
-  const cardScale = useSharedValue(1);
-  const energyBarWidth = useSharedValue(0);
-  
-  useEffect(() => {
-    // Animate energy bar on mount
-    energyBarWidth.value = withSpring(weeklyForecast[selectedDay].energy / 100, {
-      damping: 15,
-      stiffness: 100,
-    });
-  }, [selectedDay]);
-  
-  const handleTabChange = (tab: 'weekly' | 'monthly') => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    tabIndicatorPosition.value = withSpring(tab === 'weekly' ? 0 : 1, {
-      damping: 15,
-      stiffness: 120,
-    });
-    setActiveTab(tab);
-  };
-  
-  const handleDaySelect = (index: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    cardScale.value = withSequence(
-      withTiming(0.98, { duration: 100 }),
-      withSpring(1, { damping: 12 })
-    );
-    setSelectedDay(index);
-  };
-  
-  const tabIndicatorStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: interpolate(tabIndicatorPosition.value, [0, 1], [0, (Dimensions.get('window').width - SPACING.lg * 2 - 8) / 2]) }],
-  }));
-  
-  const dayCardAnimStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: cardScale.value }],
-  }));
-
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <LinearGradient colors={COLORS.gradientCosmic as [string, string, ...string[]]} style={StyleSheet.absoluteFill} />
-      <StarField starCount={25} />
+    <View style={styles.container}>
+      <LinearGradient colors={['#0A0A12', '#12122A', '#0A0A12']} style={StyleSheet.absoluteFill} />
       
-      <ScrollView 
-        style={styles.scrollView} 
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
+      <SafeAreaView style={styles.safe}>
         {/* Header */}
-        <Animated.View entering={FadeInDown.duration(ANIMATION.normal)} style={styles.header}>
-          <Text style={styles.title}>Forecast</Text>
-          <Text style={styles.subtitle}>Your cosmic outlook</Text>
-        </Animated.View>
+        <View style={styles.header}>
+          <Text style={styles.headerIcon}>📅</Text>
+          <View>
+            <Text style={styles.headerTitle}>Weekly Forecast</Text>
+            <Text style={styles.headerSub}>Your cosmic calendar</Text>
+          </View>
+        </View>
 
-        {/* Tab Switcher with animated indicator */}
-        <Animated.View entering={FadeIn.delay(100)} style={styles.tabContainer}>
-          <Animated.View style={[styles.tabIndicator, tabIndicatorStyle]} />
-          <TouchableOpacity 
-            style={styles.tab}
-            onPress={() => handleTabChange('weekly')}
-          >
-            <Text style={[styles.tabText, activeTab === 'weekly' && styles.tabTextActive]}>
-              This Week
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.tab}
-            onPress={() => handleTabChange('monthly')}
-          >
-            <Text style={[styles.tabText, activeTab === 'monthly' && styles.tabTextActive]}>
-              This Month
-            </Text>
-            </TouchableOpacity>
-          </Animated.View>
-
-          {activeTab === 'weekly' ? (
-          <>
-            {/* Weekly Calendar Strip */}
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              style={styles.weekStrip}
-              contentContainerStyle={styles.weekStripContent}
-            >
-              {weeklyForecast.map((day, index) => (
-                <Animated.View 
-                  key={index}
-                  entering={FadeInDown.delay(150 + index * 50).springify()}
-                >
-                  <TouchableOpacity
-                    style={[
-                      styles.dayCard,
-                      selectedDay === index && styles.dayCardActive
-                    ]}
-                    onPress={() => handleDaySelect(index)}
-                  >
-                    <Text style={[styles.dayName, selectedDay === index && styles.dayNameActive]}>
-                      {day.day}
-                    </Text>
-                    <Text style={[styles.dayDate, selectedDay === index && styles.dayDateActive]}>
-                      {day.date}
-                    </Text>
-                    <Text style={styles.dayMood}>{day.mood}</Text>
-                    <View style={styles.energyDot}>
-                      <View 
-                        style={[
-                          styles.energyDotFill, 
-                          { 
-                            height: `${day.energy}%`,
-                            backgroundColor: day.energy > 75 ? COLORS.success : 
-                                            day.energy > 60 ? COLORS.primary : COLORS.warning
-                          }
-                        ]} 
-                      />
-                    </View>
-                  </TouchableOpacity>
-                </Animated.View>
-              ))}
-            </ScrollView>
-
-            {/* Selected Day Details */}
-            <Animated.View style={[styles.dayDetails, dayCardAnimStyle]}>
-              <LinearGradient
-                colors={['rgba(201, 169, 98, 0.1)', 'rgba(139, 126, 200, 0.05)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.dayDetailsGradient}
+        <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+          {/* Week Days */}
+          <View style={styles.weekRow}>
+            {DAYS.map((day, i) => (
+              <TouchableOpacity 
+                key={day} 
+                style={[styles.dayBtn, selectedDay === i && styles.dayBtnActive]}
+                onPress={() => setSelectedDay(i)}
               >
-                <View style={styles.dayDetailsHeader}>
-                  <Text style={styles.dayDetailsTitle}>
-                    {weeklyForecast[selectedDay].day}, Jan {weeklyForecast[selectedDay].date}
-                  </Text>
-                  <View style={styles.energyBadge}>
-                    <Ionicons name="flash" size={14} color={COLORS.primary} />
-                    <Text style={styles.energyBadgeText}>
-                      {weeklyForecast[selectedDay].energy}%
-                    </Text>
-                  </View>
-                </View>
-                
-                <Text style={styles.dayHighlight}>
-                  {weeklyForecast[selectedDay].highlight}
+                <Text style={[styles.dayText, selectedDay === i && styles.dayTextActive]}>{day}</Text>
+                <Text style={styles.dayMood}>{MOODS[i]}</Text>
+                <Text style={[styles.dayNum, selectedDay === i && styles.dayNumActive]}>
+                  {today.getDate() + i}
                 </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-                {/* Day Energy Breakdown */}
-                <View style={styles.timeBlocks}>
-                  <View style={styles.timeBlock}>
-                    <Ionicons name="sunny-outline" size={20} color={COLORS.celestial.sun} />
-                    <Text style={styles.timeBlockLabel}>Morning</Text>
-                    <Text style={styles.timeBlockValue}>High Energy</Text>
-                  </View>
-                  <View style={styles.timeBlock}>
-                    <Ionicons name="partly-sunny-outline" size={20} color={COLORS.celestial.jupiter} />
-                    <Text style={styles.timeBlockLabel}>Afternoon</Text>
-                    <Text style={styles.timeBlockValue}>Moderate</Text>
-                  </View>
-                  <View style={styles.timeBlock}>
-                    <Ionicons name="moon-outline" size={20} color={COLORS.celestial.moon} />
-                    <Text style={styles.timeBlockLabel}>Evening</Text>
-                    <Text style={styles.timeBlockValue}>Reflective</Text>
-                  </View>
-                </View>
-              </LinearGradient>
-            </Animated.View>
-
-            {/* Weekly Tips */}
-            <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.section}>
-              <Text style={styles.sectionTitle}>WEEKLY GUIDANCE</Text>
-              
-              <View style={styles.tipCard}>
-                <View style={[styles.tipIcon, { backgroundColor: COLORS.success + '15' }]}>
-                  <Ionicons name="trending-up" size={20} color={COLORS.success} />
-                </View>
-                <View style={styles.tipContent}>
-                  <Text style={styles.tipLabel}>Best Days</Text>
-                  <Text style={styles.tipText}>Wednesday & Friday have peak energy</Text>
-                </View>
+          {/* Selected Day Details */}
+          <View style={styles.detailCard}>
+            <Text style={styles.detailMood}>{MOODS[selectedDay]}</Text>
+            <Text style={styles.detailDay}>{DAYS[selectedDay]}</Text>
+            <Text style={styles.detailHighlight}>{FORECASTS[selectedDay].highlight}</Text>
+            
+            {/* Energy Bar */}
+            <View style={styles.energySection}>
+              <Text style={styles.energyLabel}>Energy Level</Text>
+              <View style={styles.energyBar}>
+                <View style={[styles.energyFill, { width: `${FORECASTS[selectedDay].energy}%` }]} />
               </View>
+              <Text style={styles.energyValue}>{FORECASTS[selectedDay].energy}%</Text>
+            </View>
+          </View>
 
-              <View style={styles.tipCard}>
-                <View style={[styles.tipIcon, { backgroundColor: COLORS.warning + '15' }]}>
-                  <Ionicons name="alert-circle" size={20} color={COLORS.warning} />
-                </View>
-                <View style={styles.tipContent}>
-                  <Text style={styles.tipLabel}>Take It Easy</Text>
-                  <Text style={styles.tipText}>Tuesday may feel low - schedule rest</Text>
-                </View>
+          {/* Monthly Overview */}
+          <View style={styles.monthCard}>
+            <Text style={styles.monthTitle}>🌙 This Month</Text>
+            <Text style={styles.monthTheme}>Transformation & Growth</Text>
+            <Text style={styles.monthText}>
+              The stars align for major life decisions and spiritual breakthroughs. 
+              Trust your intuition and embrace change.
+            </Text>
+          </View>
+
+          {/* Key Dates */}
+          <View style={styles.datesCard}>
+            <Text style={styles.datesTitle}>✨ Key Dates</Text>
+            <View style={styles.dateItem}>
+              <Ionicons name="moon" size={20} color="#A78BFA" />
+              <View style={styles.dateInfo}>
+                <Text style={styles.dateEvent}>New Moon in Aquarius</Text>
+                <Text style={styles.dateWhen}>Feb 4</Text>
               </View>
-
-              <View style={styles.tipCard}>
-                <View style={[styles.tipIcon, { backgroundColor: COLORS.accent + '15' }]}>
-                  <Ionicons name="heart" size={20} color={COLORS.accent} />
-                </View>
-                <View style={styles.tipContent}>
-                  <Text style={styles.tipLabel}>Love Focus</Text>
-                  <Text style={styles.tipText}>Thursday favors heart-to-heart talks</Text>
-                </View>
+            </View>
+            <View style={styles.dateItem}>
+              <Ionicons name="heart" size={20} color="#F472B6" />
+              <View style={styles.dateInfo}>
+                <Text style={styles.dateEvent}>Venus enters Aries</Text>
+                <Text style={styles.dateWhen}>Feb 14</Text>
               </View>
-            </Animated.View>
-          </>
-        ) : (
-          <>
-            {/* Monthly Theme Card */}
-            <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.monthCard}>
-              <LinearGradient
-                colors={['#1A1A2E', '#16161F']}
-                style={styles.monthCardGradient}
-              >
-                <Text style={styles.monthLabel}>FEBRUARY 2026</Text>
-                <Text style={styles.monthTheme}>{monthlyOverview.theme}</Text>
-                <Text style={styles.monthOverview}>{monthlyOverview.overview}</Text>
-              </LinearGradient>
-            </Animated.View>
-
-            {/* Key Dates */}
-            <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.section}>
-              <Text style={styles.sectionTitle}>KEY DATES</Text>
-              {monthlyOverview.keyDates.map((item, index) => (
-                <Animated.View 
-                  key={index} 
-                  entering={FadeInDown.delay(250 + index * 60).springify()}
-                  style={styles.dateCard}
-                >
-                  <View style={[
-                    styles.dateIcon,
-                    { backgroundColor: item.type === 'moon' ? COLORS.celestial.moon + '20' : COLORS.celestial.venus + '20' }
-                  ]}>
-                    <Ionicons 
-                      name={item.type === 'moon' ? 'moon' : 'planet'} 
-                      size={18} 
-                      color={item.type === 'moon' ? COLORS.celestial.moon : COLORS.celestial.venus} 
-                    />
-                  </View>
-                  <View style={styles.dateContent}>
-                    <Text style={styles.dateLabel}>{item.date}</Text>
-                    <Text style={styles.dateEvent}>{item.event}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
-                </Animated.View>
-              ))}
-            </Animated.View>
-
-            {/* Monthly Areas */}
-            <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.section}>
-              <Text style={styles.sectionTitle}>LIFE AREAS</Text>
-              <View style={styles.areasGrid}>
-                {monthlyOverview.areas.map((area, index) => (
-                  <Animated.View 
-                    key={index} 
-                    entering={FadeInDown.delay(450 + index * 80).springify()}
-                    style={styles.areaCard}
-                  >
-                    <View style={styles.areaHeader}>
-                      <Text style={styles.areaName}>{area.name}</Text>
-                      <Ionicons 
-                        name={area.trend === 'up' ? 'arrow-up' : area.trend === 'down' ? 'arrow-down' : 'remove'} 
-                        size={14} 
-                        color={area.trend === 'up' ? COLORS.success : area.trend === 'down' ? COLORS.error : COLORS.textMuted} 
-                      />
-                    </View>
-                    <Text style={styles.areaScore}>{area.score}%</Text>
-                    <View style={styles.areaBar}>
-                      <View 
-                        style={[
-                          styles.areaBarFill, 
-                          { 
-                            width: `${area.score}%`,
-                            backgroundColor: area.score > 80 ? COLORS.success : 
-                                            area.score > 60 ? COLORS.primary : COLORS.warning
-                          }
-                        ]} 
-                      />
-                    </View>
-                  </Animated.View>
-                ))}
+            </View>
+            <View style={styles.dateItem}>
+              <Ionicons name="moon" size={20} color="#FBBF24" />
+              <View style={styles.dateInfo}>
+                <Text style={styles.dateEvent}>Full Moon in Virgo</Text>
+                <Text style={styles.dateWhen}>Feb 20</Text>
               </View>
-            </Animated.View>
-          </>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+            </View>
+          </View>
+
+          <View style={{ height: 100 }} />
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  scrollView: { flex: 1 },
-  content: { paddingBottom: 160 },
-  header: { padding: SPACING.lg, paddingBottom: SPACING.md },
-  title: { ...FONTS.h1, color: COLORS.textPrimary },
-  subtitle: { ...FONTS.body, color: COLORS.textMuted, marginTop: SPACING.xs },
-  
-  // Tabs
-  tabContainer: {
-    flexDirection: 'row',
-    marginHorizontal: SPACING.lg,
-    backgroundColor: COLORS.backgroundCard,
-    borderRadius: RADIUS.lg,
-    padding: 4,
-    marginBottom: SPACING.lg,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: SPACING.sm,
-    alignItems: 'center',
-    borderRadius: RADIUS.md,
-  },
-  tabActive: {
-    backgroundColor: COLORS.primary,
-  },
-  tabText: {
-    ...FONTS.bodyMedium,
-    color: COLORS.textMuted,
-  },
-  tabTextActive: {
-    color: COLORS.textInverse,
-  },
-  tabIndicator: {
-    position: 'absolute',
-    top: 4,
-    left: 4,
-    width: (Dimensions.get('window').width - SPACING.lg * 2 - 8) / 2,
-    height: '100%',
-    backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.md,
-  },
-
-  // Week Strip
-  weekStrip: { marginBottom: SPACING.lg },
-  weekStripContent: { paddingHorizontal: SPACING.lg, gap: SPACING.sm },
-  dayCard: {
-    width: 56,
-    alignItems: 'center',
-    paddingVertical: SPACING.md,
-    backgroundColor: COLORS.backgroundCard,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  dayCardActive: {
-    backgroundColor: COLORS.primaryMuted,
-    borderColor: COLORS.primary,
-  },
-  dayName: { ...FONTS.caption, color: COLORS.textMuted },
-  dayNameActive: { color: COLORS.primary },
-  dayDate: { ...FONTS.h3, color: COLORS.textPrimary, marginVertical: 2 },
-  dayDateActive: { color: COLORS.primary },
-  dayMood: { fontSize: 16, marginVertical: 4 },
-  energyDot: {
-    width: 4,
-    height: 20,
-    backgroundColor: COLORS.border,
-    borderRadius: 2,
-    overflow: 'hidden',
-    marginTop: 4,
-  },
-  energyDotFill: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    borderRadius: 2,
-  },
-
-  // Day Details
-  dayDetails: { marginHorizontal: SPACING.lg, marginBottom: SPACING.lg },
-  dayDetailsGradient: {
-    borderRadius: RADIUS.xl,
-    padding: SPACING.lg,
-    borderWidth: 1,
-    borderColor: COLORS.borderGold,
-  },
-  dayDetailsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.sm,
-  },
-  dayDetailsTitle: { ...FONTS.h3, color: COLORS.textPrimary },
-  energyBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.primaryMuted,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: RADIUS.full,
-  },
-  energyBadgeText: { ...FONTS.caption, color: COLORS.primary },
-  dayHighlight: { ...FONTS.bodyLarge, color: COLORS.textPrimary, marginBottom: SPACING.lg },
-  
-  // Time Blocks
-  timeBlocks: { flexDirection: 'row', gap: SPACING.sm },
-  timeBlock: {
-    flex: 1,
-    alignItems: 'center',
-    backgroundColor: COLORS.background,
-    padding: SPACING.sm,
-    borderRadius: RADIUS.md,
-  },
-  timeBlockLabel: { ...FONTS.caption, color: COLORS.textMuted, marginTop: 4 },
-  timeBlockValue: { ...FONTS.caption, color: COLORS.textPrimary, marginTop: 2 },
-
-  // Section
-  section: { paddingHorizontal: SPACING.lg, marginBottom: SPACING.lg },
-  sectionTitle: { ...FONTS.overline, color: COLORS.textMuted, marginBottom: SPACING.md },
-
-  // Tip Cards
-  tipCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.backgroundCard,
-    padding: SPACING.md,
-    borderRadius: RADIUS.lg,
-    marginBottom: SPACING.sm,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  tipIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: SPACING.md,
-  },
-  tipContent: { flex: 1 },
-  tipLabel: { ...FONTS.caption, color: COLORS.textMuted },
-  tipText: { ...FONTS.body, color: COLORS.textPrimary, marginTop: 2 },
-
-  // Monthly Card
-  monthCard: { marginHorizontal: SPACING.lg, marginBottom: SPACING.lg },
-  monthCardGradient: {
-    borderRadius: RADIUS.xl,
-    padding: SPACING.xl,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  monthLabel: { ...FONTS.overline, color: COLORS.primary, marginBottom: SPACING.sm },
-  monthTheme: { ...FONTS.h2, color: COLORS.textPrimary, marginBottom: SPACING.md },
-  monthOverview: { ...FONTS.body, color: COLORS.textSecondary, lineHeight: 24 },
-
-  // Date Cards
-  dateCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.backgroundCard,
-    padding: SPACING.md,
-    borderRadius: RADIUS.lg,
-    marginBottom: SPACING.sm,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  dateIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: SPACING.md,
-  },
-  dateContent: { flex: 1 },
-  dateLabel: { ...FONTS.caption, color: COLORS.primary },
-  dateEvent: { ...FONTS.body, color: COLORS.textPrimary, marginTop: 2 },
-
-  // Areas Grid
-  areasGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.sm,
-  },
-  areaCard: {
-    width: (width - SPACING.lg * 2 - SPACING.sm) / 2,
-    backgroundColor: COLORS.backgroundCard,
-    padding: SPACING.md,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  areaHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  areaName: { ...FONTS.caption, color: COLORS.textMuted },
-  areaScore: { ...FONTS.h2, color: COLORS.textPrimary, marginVertical: SPACING.xs },
-  areaBar: {
-    height: 4,
-    backgroundColor: COLORS.border,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  areaBarFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
+  container: { flex: 1, backgroundColor: '#0A0A12' },
+  safe: { flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
+  headerIcon: { fontSize: 28 },
+  headerTitle: { fontSize: 20, fontWeight: '700', color: '#FFF' },
+  headerSub: { fontSize: 13, color: 'rgba(255,255,255,0.5)' },
+  scroll: { flex: 1 },
+  weekRow: { flexDirection: 'row', paddingHorizontal: 12, marginBottom: 20 },
+  dayBtn: { flex: 1, alignItems: 'center', padding: 10, borderRadius: 12 },
+  dayBtnActive: { backgroundColor: 'rgba(139,92,246,0.2)' },
+  dayText: { fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 4 },
+  dayTextActive: { color: '#A78BFA' },
+  dayMood: { fontSize: 20, marginBottom: 4 },
+  dayNum: { fontSize: 14, color: 'rgba(255,255,255,0.7)' },
+  dayNumActive: { color: '#FFF', fontWeight: '700' },
+  detailCard: { backgroundColor: 'rgba(255,255,255,0.05)', marginHorizontal: 16, borderRadius: 20, padding: 24, alignItems: 'center', marginBottom: 20 },
+  detailMood: { fontSize: 48, marginBottom: 8 },
+  detailDay: { fontSize: 24, fontWeight: '700', color: '#FFF', marginBottom: 8 },
+  detailHighlight: { fontSize: 16, color: 'rgba(255,255,255,0.7)', textAlign: 'center' },
+  energySection: { width: '100%', marginTop: 20 },
+  energyLabel: { fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 },
+  energyBar: { height: 8, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 4, overflow: 'hidden' },
+  energyFill: { height: '100%', backgroundColor: '#8B5CF6', borderRadius: 4 },
+  energyValue: { fontSize: 14, color: '#A78BFA', marginTop: 8, textAlign: 'right' },
+  monthCard: { backgroundColor: 'rgba(139,92,246,0.1)', marginHorizontal: 16, borderRadius: 16, padding: 20, marginBottom: 20 },
+  monthTitle: { fontSize: 16, color: '#A78BFA', marginBottom: 8 },
+  monthTheme: { fontSize: 20, fontWeight: '700', color: '#FFF', marginBottom: 8 },
+  monthText: { fontSize: 14, color: 'rgba(255,255,255,0.7)', lineHeight: 22 },
+  datesCard: { backgroundColor: 'rgba(255,255,255,0.05)', marginHorizontal: 16, borderRadius: 16, padding: 20 },
+  datesTitle: { fontSize: 16, color: '#FFF', fontWeight: '600', marginBottom: 16 },
+  dateItem: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
+  dateInfo: { flex: 1 },
+  dateEvent: { fontSize: 15, color: '#FFF' },
+  dateWhen: { fontSize: 13, color: 'rgba(255,255,255,0.5)' },
 });

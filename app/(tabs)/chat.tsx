@@ -1,19 +1,16 @@
 /**
- * CHAT SCREEN - SIMPLIFIED
- * Clean AI chat without complex voice input
+ * CHAT SCREEN - ULTRA SIMPLE
+ * Minimal dependencies to avoid crashes
  */
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef } from 'react';
 import { 
   View, Text, StyleSheet, ScrollView, TextInput, 
   TouchableOpacity, KeyboardAvoidingView, Platform,
   ActivityIndicator
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
-import { useUserStore } from '../../src/stores';
-import { sendMessage } from '../../src/services/ai';
 
 interface Message {
   id: string;
@@ -21,126 +18,77 @@ interface Message {
   content: string;
 }
 
-const QUICK_PROMPTS = [
-  "What does today hold for me?",
-  "Love life insights",
-  "Career guidance",
-];
+const SUPABASE_URL = 'https://ennlryjggdoljgbqhttb.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVubmxyeWpnZ2RvbGpnYnFodHRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk0Nzg3ODMsImV4cCI6MjA4NTA1NDc4M30.FOlCuYFogxXTdvgUTMw7Em4-dn2ANRRAHdf6WeJi3yY';
 
 export default function ChatScreen() {
-  const insets = useSafeAreaInsets();
-  const { profile } = useUserStore();
-  const scrollViewRef = useRef<ScrollView>(null);
-  
+  const scrollRef = useRef<ScrollView>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const userName = profile?.name || 'friend';
-  const sunSign = profile?.sunSign || 'Aries';
-
-  const handleSend = useCallback(async (text: string) => {
-    if (!text.trim() || isLoading) return;
+  const sendMessage = async (text: string) => {
+    if (!text.trim() || loading) return;
     
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: text.trim(),
-    };
-    
-    setMessages(prev => [...prev, userMessage]);
+    const userMsg: Message = { id: Date.now().toString(), role: 'user', content: text.trim() };
+    setMessages(prev => [...prev, userMsg]);
     setInput('');
-    setIsLoading(true);
-    
-    // Scroll to bottom
-    setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
+    setLoading(true);
 
     try {
-      const response = await sendMessage(text, userName, sunSign);
-      
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: response.response,
-      };
-      
-      setMessages(prev => [...prev, assistantMessage]);
-    } catch (error) {
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: 'The stars are unclear right now. Please try again.',
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/ai-chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_ANON}`,
+        },
+        body: JSON.stringify({ message: text, userData: { name: 'Friend', sunSign: 'Aries' } }),
+      });
+      const data = await res.json();
+      const aiMsg: Message = { id: (Date.now()+1).toString(), role: 'assistant', content: data.response || 'The stars are quiet...' };
+      setMessages(prev => [...prev, aiMsg]);
+    } catch (e) {
+      const errMsg: Message = { id: (Date.now()+1).toString(), role: 'assistant', content: 'Unable to connect. Try again.' };
+      setMessages(prev => [...prev, errMsg]);
     } finally {
-      setIsLoading(false);
-      setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
+      setLoading(false);
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
     }
-  }, [isLoading, userName, sunSign]);
+  };
 
   return (
     <View style={styles.container}>
       <LinearGradient colors={['#0A0A12', '#12122A', '#0A0A12']} style={StyleSheet.absoluteFill} />
       
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <SafeAreaView style={styles.safe}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerEmoji}>🔮</Text>
-          <View>
-            <Text style={styles.headerTitle}>Veya</Text>
-            <Text style={styles.headerSubtitle}>Your cosmic guide</Text>
-          </View>
+          <Text style={styles.headerIcon}>🔮</Text>
+          <Text style={styles.headerTitle}>Ask Veya</Text>
         </View>
 
         {/* Messages */}
-        <ScrollView
-          ref={scrollViewRef}
-          style={styles.messagesContainer}
-          contentContainerStyle={[styles.messagesContent, { paddingBottom: 120 }]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
+        <ScrollView ref={scrollRef} style={styles.messages} contentContainerStyle={styles.msgContent}>
           {messages.length === 0 ? (
-            <Animated.View entering={FadeIn.duration(500)} style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>🔮</Text>
-              <Text style={styles.emptyTitle}>Ask the cosmos</Text>
-              <Text style={styles.emptySubtitle}>What would you like to know, {userName}?</Text>
-              
-              {/* Quick prompts */}
-              <View style={styles.quickPrompts}>
-                {QUICK_PROMPTS.map((prompt, i) => (
-                  <TouchableOpacity
-                    key={i}
-                    style={styles.promptButton}
-                    onPress={() => handleSend(prompt)}
-                  >
-                    <Text style={styles.promptText}>{prompt}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </Animated.View>
+            <View style={styles.empty}>
+              <Text style={styles.emptyIcon}>✨</Text>
+              <Text style={styles.emptyText}>Ask me anything about your stars...</Text>
+              <TouchableOpacity style={styles.quickBtn} onPress={() => sendMessage("What does today hold for me?")}>
+                <Text style={styles.quickText}>What does today hold for me?</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.quickBtn} onPress={() => sendMessage("Tell me about love")}>
+                <Text style={styles.quickText}>Tell me about love</Text>
+              </TouchableOpacity>
+            </View>
           ) : (
-            messages.map((msg, i) => (
-              <Animated.View
-                key={msg.id}
-                entering={FadeInDown.delay(i * 50).duration(300)}
-                style={[
-                  styles.messageBubble,
-                  msg.role === 'user' ? styles.userBubble : styles.assistantBubble
-                ]}
-              >
-                <Text style={[
-                  styles.messageText,
-                  msg.role === 'user' ? styles.userText : styles.assistantText
-                ]}>
-                  {msg.content}
-                </Text>
-              </Animated.View>
+            messages.map(msg => (
+              <View key={msg.id} style={[styles.bubble, msg.role === 'user' ? styles.userBubble : styles.aiBubble]}>
+                <Text style={styles.bubbleText}>{msg.content}</Text>
+              </View>
             ))
           )}
-          
-          {isLoading && (
-            <View style={styles.loadingContainer}>
+          {loading && (
+            <View style={styles.loadingRow}>
               <ActivityIndicator size="small" color="#8B5CF6" />
               <Text style={styles.loadingText}>Consulting the stars...</Text>
             </View>
@@ -148,11 +96,8 @@ export default function ChatScreen() {
         </ScrollView>
 
         {/* Input */}
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.inputWrapper}
-        >
-          <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={styles.inputRow}>
             <TextInput
               style={styles.input}
               value={input}
@@ -160,17 +105,8 @@ export default function ChatScreen() {
               placeholder="Ask the cosmos..."
               placeholderTextColor="rgba(255,255,255,0.4)"
               multiline
-              maxLength={500}
             />
-            <TouchableOpacity
-              style={[styles.sendButton, !input.trim() && styles.sendButtonDisabled]}
-              onPress={() => handleSend(input)}
-              disabled={!input.trim() || isLoading}
-            >
-              <LinearGradient
-                colors={input.trim() ? ['#8B5CF6', '#A78BFA'] : ['#333', '#222']}
-                style={StyleSheet.absoluteFill}
-              />
+            <TouchableOpacity style={styles.sendBtn} onPress={() => sendMessage(input)} disabled={!input.trim() || loading}>
               <Ionicons name="send" size={20} color="#FFF" />
             </TouchableOpacity>
           </View>
@@ -182,31 +118,24 @@ export default function ChatScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0A0A12' },
-  safeArea: { flex: 1 },
+  safe: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
-  headerEmoji: { fontSize: 32 },
+  headerIcon: { fontSize: 28 },
   headerTitle: { fontSize: 20, fontWeight: '700', color: '#FFF' },
-  headerSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.6)' },
-  messagesContainer: { flex: 1 },
-  messagesContent: { padding: 16, gap: 12 },
-  emptyState: { alignItems: 'center', paddingTop: 60 },
-  emptyIcon: { fontSize: 64, marginBottom: 16 },
-  emptyTitle: { fontSize: 24, fontWeight: '700', color: '#FFF', marginBottom: 8 },
-  emptySubtitle: { fontSize: 16, color: 'rgba(255,255,255,0.6)', marginBottom: 24 },
-  quickPrompts: { gap: 12, width: '100%', paddingHorizontal: 20 },
-  promptButton: { backgroundColor: 'rgba(139,92,246,0.15)', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: 'rgba(139,92,246,0.3)' },
-  promptText: { color: '#A78BFA', fontSize: 15, textAlign: 'center' },
-  messageBubble: { maxWidth: '85%', borderRadius: 16, padding: 14 },
+  messages: { flex: 1 },
+  msgContent: { padding: 16, paddingBottom: 100 },
+  empty: { alignItems: 'center', paddingTop: 60 },
+  emptyIcon: { fontSize: 48, marginBottom: 16 },
+  emptyText: { fontSize: 16, color: 'rgba(255,255,255,0.6)', marginBottom: 24 },
+  quickBtn: { backgroundColor: 'rgba(139,92,246,0.15)', borderRadius: 12, padding: 14, marginBottom: 12, width: '100%' },
+  quickText: { color: '#A78BFA', fontSize: 15, textAlign: 'center' },
+  bubble: { maxWidth: '80%', borderRadius: 16, padding: 12, marginBottom: 12 },
   userBubble: { alignSelf: 'flex-end', backgroundColor: '#8B5CF6' },
-  assistantBubble: { alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.08)' },
-  messageText: { fontSize: 15, lineHeight: 22 },
-  userText: { color: '#FFF' },
-  assistantText: { color: 'rgba(255,255,255,0.9)' },
-  loadingContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12 },
-  loadingText: { color: 'rgba(255,255,255,0.6)', fontSize: 14 },
-  inputWrapper: { position: 'absolute', bottom: 0, left: 0, right: 0 },
-  inputContainer: { flexDirection: 'row', padding: 12, gap: 10, backgroundColor: 'rgba(10,10,20,0.95)', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' },
-  input: { flex: 1, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 24, paddingHorizontal: 18, paddingVertical: 12, fontSize: 16, color: '#FFF', maxHeight: 100 },
-  sendButton: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  sendButtonDisabled: { opacity: 0.5 },
+  aiBubble: { alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.1)' },
+  bubbleText: { color: '#FFF', fontSize: 15, lineHeight: 22 },
+  loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  loadingText: { color: 'rgba(255,255,255,0.5)', fontSize: 14 },
+  inputRow: { flexDirection: 'row', padding: 12, gap: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' },
+  input: { flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 24, paddingHorizontal: 16, paddingVertical: 12, color: '#FFF', fontSize: 16, maxHeight: 100 },
+  sendBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#8B5CF6', alignItems: 'center', justifyContent: 'center' },
 });
