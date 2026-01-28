@@ -1,5 +1,5 @@
 /**
- * GENERATING SCREEN - AI CALCULATES FULL CHART
+ * GENERATING SCREEN - Calculate chart locally (no API needed)
  */
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
@@ -7,10 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInUp, useAnimatedStyle, useSharedValue, withRepeat, withTiming, Easing } from 'react-native-reanimated';
-import { useAuthStore } from '../../src/stores';
-
-const SUPABASE_URL = 'https://ennlryjggdoljgbqhttb.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVubmxyeWpnZ2RvbGpnYnFodHRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc5MjkxNzAsImV4cCI6MjA1MzUwNTE3MH0.2utgjnoFsHJeKtwofLeeT-AHM_2I19RSqYTdFqp90qY';
+import { useAuthStore, getZodiacSign } from '../../src/stores';
 
 const MESSAGES = [
   'Consulting the cosmos...',
@@ -20,6 +17,22 @@ const MESSAGES = [
   'Aligning the planets...',
   'Weaving your cosmic story...',
 ];
+
+// Zodiac data for local calculation
+const ZODIAC_DATA: Record<string, { element: string; ruling_planet: string; personality: string }> = {
+  Aries: { element: 'Fire', ruling_planet: 'Mars', personality: 'Bold, ambitious, and courageous leader' },
+  Taurus: { element: 'Earth', ruling_planet: 'Venus', personality: 'Reliable, patient, and devoted soul' },
+  Gemini: { element: 'Air', ruling_planet: 'Mercury', personality: 'Curious, adaptable, and witty communicator' },
+  Cancer: { element: 'Water', ruling_planet: 'Moon', personality: 'Nurturing, intuitive, and deeply emotional' },
+  Leo: { element: 'Fire', ruling_planet: 'Sun', personality: 'Confident, creative, and natural performer' },
+  Virgo: { element: 'Earth', ruling_planet: 'Mercury', personality: 'Analytical, practical, and helpful perfectionist' },
+  Libra: { element: 'Air', ruling_planet: 'Venus', personality: 'Diplomatic, graceful, and harmony-seeking' },
+  Scorpio: { element: 'Water', ruling_planet: 'Pluto', personality: 'Intense, mysterious, and deeply passionate' },
+  Sagittarius: { element: 'Fire', ruling_planet: 'Jupiter', personality: 'Adventurous, optimistic, and freedom-loving' },
+  Capricorn: { element: 'Earth', ruling_planet: 'Saturn', personality: 'Disciplined, ambitious, and wise achiever' },
+  Aquarius: { element: 'Air', ruling_planet: 'Uranus', personality: 'Innovative, humanitarian, and unique thinker' },
+  Pisces: { element: 'Water', ruling_planet: 'Neptune', personality: 'Dreamy, compassionate, and artistic soul' },
+};
 
 export default function GeneratingScreen() {
   const router = useRouter();
@@ -56,33 +69,24 @@ export default function GeneratingScreen() {
 
   const calculateChart = async () => {
     try {
-      // Call AI to calculate full chart
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/calculate-chart`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_ANON}`,
-        },
-        body: JSON.stringify({
-          birthDate: profile?.birth_date,
-          birthTime: profile?.birth_time,
-          birthLocation: profile?.birth_place || profile?.birth_location,
-        }),
-      });
-
-      const data = await response.json();
+      // Calculate sun sign from birth date
+      const birthDate = profile?.birthDate || profile?.birth_date || '';
+      const sunSign = birthDate ? getZodiacSign(birthDate) : (profile?.sunSign || profile?.sun_sign || 'Aries');
       
-      if (data.success && data.chart) {
-        // Update profile with AI-calculated signs
-        await updateProfile({
-          sun_sign: data.chart.sun_sign || profile?.sun_sign,
-          moon_sign: data.chart.moon_sign || 'Unknown',
-          rising_sign: data.chart.rising_sign || 'Unknown',
-          element: data.chart.element,
-          ruling_planet: data.chart.ruling_planet,
-          personality_summary: data.chart.personality,
-        });
-      }
+      // Get zodiac data
+      const zodiacInfo = ZODIAC_DATA[sunSign] || ZODIAC_DATA.Aries;
+      
+      // Update profile with calculated data
+      await updateProfile({
+        sunSign: sunSign,
+        sun_sign: sunSign,
+        zodiac_sign: sunSign,
+        moon_sign: 'Calculating...', // Would need exact time + location for real calc
+        rising_sign: 'Calculating...', // Would need exact time + location for real calc
+        element: zodiacInfo.element,
+        ruling_planet: zodiacInfo.ruling_planet,
+        personality_summary: zodiacInfo.personality,
+      });
       
       // Complete onboarding
       await setOnboarded(true);
@@ -90,23 +94,26 @@ export default function GeneratingScreen() {
       // Wait for animations then navigate
       setTimeout(() => {
         router.replace('/(tabs)');
-      }, 2000);
+      }, 2500);
       
     } catch (error) {
       console.error('Chart calculation error:', error);
       
-      // Update with basic fallback data
+      // Fallback
       await updateProfile({
-        sun_sign: profile?.sun_sign || 'Aries',
+        sun_sign: profile?.sunSign || 'Aries',
         moon_sign: 'Unknown',
         rising_sign: 'Unknown',
       });
       
-      // Still complete onboarding even if AI fails
       await setOnboarded(true);
       setTimeout(() => router.replace('/(tabs)'), 2000);
     }
   };
+
+  const displayDate = profile?.birthDate || profile?.birth_date || 'Your birth data';
+  const displayTime = profile?.birthTime || profile?.birth_time;
+  const displayLocation = profile?.birth_place || profile?.birth_location;
 
   return (
     <View style={styles.container}>
@@ -134,9 +141,9 @@ export default function GeneratingScreen() {
 
           <Animated.View entering={FadeIn.delay(1000)} style={styles.dataPreview}>
             <Text style={styles.previewLabel}>Processing</Text>
-            <Text style={styles.previewValue}>{profile?.birth_date || 'Your birth data'}</Text>
-            {profile?.birth_time && <Text style={styles.previewTime}>{profile.birth_time}</Text>}
-            {(profile?.birth_place || profile?.birth_location) && <Text style={styles.previewLocation}>📍 {profile.birth_place || profile.birth_location}</Text>}
+            <Text style={styles.previewValue}>{displayDate}</Text>
+            {displayTime && <Text style={styles.previewTime}>{displayTime}</Text>}
+            {displayLocation && <Text style={styles.previewLocation}>📍 {displayLocation}</Text>}
           </Animated.View>
         </View>
       </SafeAreaView>
