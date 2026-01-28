@@ -45,6 +45,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [reading, setReading] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
   
   const energyWidth = useSharedValue(0);
   const cardScale = useSharedValue(0.95);
@@ -64,6 +65,7 @@ export default function HomeScreen() {
   // Fetch daily reading
   const fetchReading = useCallback(async () => {
     try {
+      setError(null);
       const data = await getDailyReading(zodiacSign, profile?.intent);
       setReading(data);
       setDailyInsight(data);
@@ -75,6 +77,19 @@ export default function HomeScreen() {
       });
     } catch (error) {
       console.error('Failed to fetch reading:', error);
+      setError('Unable to fetch daily reading. Please try again.');
+      
+      // Set fallback reading
+      setReading({
+        energy: 75,
+        reading: "The stars are aligning for you today. Stay positive and trust your intuition.",
+        theme: "Cosmic Alignment",
+        luckyColor: "Purple",
+        luckyNumber: 7,
+        luckyTime: "3:33 PM",
+        do: "Trust your intuition",
+        avoid: "Overthinking",
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -138,6 +153,14 @@ export default function HomeScreen() {
               {today}
             </Text>
           </Animated.View>
+          
+          {/* Error Banner */}
+          {error && (
+            <Animated.View entering={FadeInDown.duration(300)} style={[styles.errorBanner, { backgroundColor: colors.error + '20', borderColor: colors.error + '40' }]}>
+              <Ionicons name="alert-circle" size={20} color={colors.error} />
+              <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
+            </Animated.View>
+          )}
           
           {/* Main Reading Card */}
           <Animated.View style={cardAnimStyle}>
@@ -430,5 +453,19 @@ const styles = StyleSheet.create({
   },
   zodiacText: {
     fontSize: 14,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

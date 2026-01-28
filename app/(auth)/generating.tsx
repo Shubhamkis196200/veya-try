@@ -94,6 +94,14 @@ export default function GeneratingScreen() {
       
     } catch (error) {
       console.error('Chart calculation error:', error);
+      
+      // Update with basic fallback data
+      await updateProfile({
+        sun_sign: profile?.sun_sign || 'Aries',
+        moon_sign: 'Unknown',
+        rising_sign: 'Unknown',
+      });
+      
       // Still complete onboarding even if AI fails
       await setOnboarded(true);
       setTimeout(() => router.replace('/(tabs)'), 2000);
