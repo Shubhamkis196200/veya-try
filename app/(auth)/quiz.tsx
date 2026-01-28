@@ -78,9 +78,9 @@ export default function QuizScreen() {
   };
   
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg.primary }]}>
+    <View style={[styles.container, { backgroundColor: '#08080F' }]}>
       <LinearGradient
-        colors={colors.gradient.cosmic}
+        colors={['#0A0A12', '#12122A', '#0A0A12']}
         style={StyleSheet.absoluteFill}
       />
       <StarField starCount={40} />
