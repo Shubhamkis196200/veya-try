@@ -1,93 +1,136 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+/**
+ * AI Chat Edge Function - Simple Version
+ * Calls AWS Bedrock Claude
+ */
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+};
 
-const ZODIAC: Record<string, { element: string; ruler: string; traits: string }> = {
-  Aries: { element: 'fire', ruler: 'Mars', traits: 'bold, ambitious, passionate' },
-  Taurus: { element: 'earth', ruler: 'Venus', traits: 'reliable, patient, sensual' },
-  Gemini: { element: 'air', ruler: 'Mercury', traits: 'curious, adaptable, witty' },
-  Cancer: { element: 'water', ruler: 'Moon', traits: 'nurturing, intuitive, protective' },
-  Leo: { element: 'fire', ruler: 'Sun', traits: 'confident, dramatic, generous' },
-  Virgo: { element: 'earth', ruler: 'Mercury', traits: 'analytical, practical, helpful' },
-  Libra: { element: 'air', ruler: 'Venus', traits: 'diplomatic, graceful, romantic' },
-  Scorpio: { element: 'water', ruler: 'Pluto', traits: 'intense, mysterious, passionate' },
-  Sagittarius: { element: 'fire', ruler: 'Jupiter', traits: 'adventurous, optimistic, free' },
-  Capricorn: { element: 'earth', ruler: 'Saturn', traits: 'disciplined, ambitious, wise' },
-  Aquarius: { element: 'air', ruler: 'Uranus', traits: 'innovative, humanitarian, unique' },
-  Pisces: { element: 'water', ruler: 'Neptune', traits: 'dreamy, compassionate, artistic' },
-}
+// AWS credentials from environment
+const AWS_ACCESS_KEY = Deno.env.get('AWS_ACCESS_KEY_ID') || '';
+const AWS_SECRET_KEY = Deno.env.get('AWS_SECRET_ACCESS_KEY') || '';
+const AWS_REGION = 'us-east-1';
 
-function getMoonPhase() {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = now.getMonth() + 1
-  const day = now.getDate()
-  let jd = Math.floor(365.25 * (year + 4716)) + Math.floor(30.6001 * (month + 1)) + day - 1524.5
-  const age = ((jd - 2451550.1) % 29.530588853 + 29.530588853) % 29.530588853
-  const illumination = Math.round((1 - Math.cos(age * 2 * Math.PI / 29.530588853)) * 50)
-  let phase = 'Waxing Crescent', energy = 'building momentum'
-  if (age < 1.85) { phase = 'New Moon'; energy = 'new beginnings' }
-  else if (age < 7.38) { phase = 'Waxing Crescent'; energy = 'taking action' }
-  else if (age < 14.77) { phase = 'Waxing Gibbous'; energy = 'refining' }
-  else if (age < 16.61) { phase = 'Full Moon'; energy = 'culmination' }
-  else if (age < 22.15) { phase = 'Waning Gibbous'; energy = 'gratitude' }
-  else { phase = 'Waning Crescent'; energy = 'rest, reflection' }
-  return { phase, illumination, energy }
-}
-
-function getPlanets() {
-  const day = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000)
-  const signs = ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo', 'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces']
-  return {
-    Sun: signs[Math.floor((day + 10) / 30.44) % 12],
-    Moon: signs[Math.floor((day * 13.4) / 2.5) % 12],
-    Venus: signs[Math.floor((day * 1.6 + 120) / 30) % 12],
-    Mars: signs[Math.floor((day * 0.53 + 200) / 30) % 12],
+async function signAWSRequest(
+  method: string,
+  url: string,
+  body: string,
+  service: string
+): Promise<Record<string, string>> {
+  const encoder = new TextEncoder();
+  const now = new Date();
+  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
+  const dateStamp = amzDate.slice(0, 8);
+  
+  const parsedUrl = new URL(url);
+  const host = parsedUrl.host;
+  const path = parsedUrl.pathname;
+  
+  const canonicalHeaders = `host:${host}\nx-amz-date:${amzDate}\n`;
+  const signedHeaders = 'host;x-amz-date';
+  
+  const payloadHash = await crypto.subtle.digest('SHA-256', encoder.encode(body));
+  const payloadHashHex = Array.from(new Uint8Array(payloadHash))
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+  
+  const canonicalRequest = [method, path, '', canonicalHeaders, signedHeaders, payloadHashHex].join('\n');
+  
+  const algorithm = 'AWS4-HMAC-SHA256';
+  const credentialScope = `${dateStamp}/${AWS_REGION}/${service}/aws4_request`;
+  
+  const canonicalRequestHash = await crypto.subtle.digest('SHA-256', encoder.encode(canonicalRequest));
+  const canonicalRequestHashHex = Array.from(new Uint8Array(canonicalRequestHash))
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+  
+  const stringToSign = [algorithm, amzDate, credentialScope, canonicalRequestHashHex].join('\n');
+  
+  async function hmacSha256(key: ArrayBuffer, data: string): Promise<ArrayBuffer> {
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw', key, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+    );
+    return await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(data));
   }
+  
+  const kDate = await hmacSha256(encoder.encode(`AWS4${AWS_SECRET_KEY}`), dateStamp);
+  const kRegion = await hmacSha256(kDate, AWS_REGION);
+  const kService = await hmacSha256(kRegion, service);
+  const kSigning = await hmacSha256(kService, 'aws4_request');
+  
+  const signature = await hmacSha256(kSigning, stringToSign);
+  const signatureHex = Array.from(new Uint8Array(signature))
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+  
+  const authHeader = `${algorithm} Credential=${AWS_ACCESS_KEY}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signatureHex}`;
+  
+  return {
+    'Authorization': authHeader,
+    'X-Amz-Date': amzDate,
+    'Content-Type': 'application/json',
+  };
+}
+
+async function callBedrock(message: string, userData: any): Promise<string> {
+  const systemPrompt = `You are Veya, a mystical AI astrologer. You speak with warmth and cosmic wisdom.
+The user's name is ${userData?.name || 'friend'} and their sun sign is ${userData?.sunSign || 'unknown'}.
+Keep responses concise (2-3 sentences) and sprinkle in astrological insights.`;
+
+  const requestBody = JSON.stringify({
+    anthropic_version: 'bedrock-2023-05-31',
+    max_tokens: 300,
+    system: systemPrompt,
+    messages: [{ role: 'user', content: message }],
+  });
+
+  const modelId = 'anthropic.claude-3-5-sonnet-20241022-v2:0';
+  const url = `https://bedrock-runtime.${AWS_REGION}.amazonaws.com/model/${modelId}/invoke`;
+
+  const headers = await signAWSRequest('POST', url, requestBody, 'bedrock');
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: requestBody,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Bedrock error:', errorText);
+    throw new Error(`Bedrock API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.content?.[0]?.text || 'The stars are quiet...';
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
 
   try {
-    const { message, userData } = await req.json()
-    const PERPLEXITY_KEY = Deno.env.get('PERPLEXITY_API_KEY')
-    if (!PERPLEXITY_KEY) throw new Error('API key not configured')
+    const { message, userData } = await req.json();
 
-    const moon = getMoonPhase()
-    const planets = getPlanets()
-    const sign = userData?.sunSign || 'Aries'
-    const signData = ZODIAC[sign] || ZODIAC.Aries
-    const name = userData?.name || 'friend'
+    if (!message) {
+      return new Response(
+        JSON.stringify({ error: 'Message is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    const systemPrompt = `You are Veya, a wise AI astrologer. Give personalized guidance.
+    const response = await callBedrock(message, userData);
 
-COSMIC WEATHER: Moon ${moon.phase} (${moon.illumination}%), Sun in ${planets.Sun}, Venus in ${planets.Venus}
-
-USER: ${name}, Sun in ${sign} (${signData.traits}), Moon ${userData?.moonSign || '?'}, Rising ${userData?.risingSign || '?'}, Born ${userData?.birthDate || '?'}
-
-RULES: Use their name/sign, reference planets, be specific & warm, 2-3 paragraphs.`
-
-    const response = await fetch('https://api.perplexity.ai/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${PERPLEXITY_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'sonar',
-        messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: message }],
-        max_tokens: 500, temperature: 0.7,
-      }),
-    })
-
-    if (!response.ok) throw new Error('AI service error')
-    const data = await response.json()
-
-    return new Response(JSON.stringify({ response: data.choices?.[0]?.message?.content, moon, planets }), 
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    return new Response(
+      JSON.stringify({ response }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), 
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    console.error('Error:', error);
+    return new Response(
+      JSON.stringify({ error: 'Failed to process request', response: 'The cosmos is resting. Try again soon.' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
-})
+});
