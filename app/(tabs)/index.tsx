@@ -102,8 +102,8 @@ export default function HomeScreen() {
   
   if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.bg.primary }]}>
-        <LinearGradient colors={colors.gradient.cosmic} style={StyleSheet.absoluteFill} />
+      <View style={[styles.container, { backgroundColor: '#08080F' }]}>
+        <LinearGradient colors={['#0A0A12', '#12122A', '#0A0A12']} style={StyleSheet.absoluteFill} />
         <SafeAreaView style={styles.safe}>
           <HomeSkeleton />
         </SafeAreaView>
@@ -112,8 +112,8 @@ export default function HomeScreen() {
   }
   
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg.primary }]}>
-      <LinearGradient colors={colors.gradient.cosmic} style={StyleSheet.absoluteFill} />
+    <View style={[styles.container, { backgroundColor: '#08080F' }]}>
+      <LinearGradient colors={['#0A0A12', '#12122A', '#0A0A12']} style={StyleSheet.absoluteFill} />
       <StarField starCount={30} />
       
       <SafeAreaView style={styles.safe} edges={['top']}>

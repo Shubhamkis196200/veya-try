@@ -330,7 +330,7 @@ export default function ChatScreen() {
           style={styles.messagesContainer}
           contentContainerStyle={[
             styles.messagesContent,
-            { paddingBottom: keyboardHeight > 0 ? 20 : 180 }
+            { paddingBottom: keyboardHeight > 0 ? 20 : 120 }
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -385,7 +385,7 @@ export default function ChatScreen() {
           keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
           style={styles.inputWrapper}
         >
-          <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 20) + 80 }]}>
+          <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
             {/* Voice Status */}
             <VoiceStatusIndicator 
               isListening={isListening} 
