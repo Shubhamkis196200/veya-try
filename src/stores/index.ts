@@ -70,8 +70,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ isLoading: false });
       }
 
-      // Listen for auth changes
-      auth.onAuthStateChange(async (event, session) => {
+      // Listen for auth changes - store subscription for cleanup
+      const { data: { subscription } } = auth.onAuthStateChange(async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
           const { data: profile } = await db.profiles.get(session.user.id);
           set({
@@ -89,6 +89,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           });
         }
       });
+      
+      // Store subscription for potential cleanup
+      (window as any).__authSubscription = subscription;
     } catch (error) {
       console.error('Auth init error:', error);
       set({ isLoading: false });

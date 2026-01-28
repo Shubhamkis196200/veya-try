@@ -8,6 +8,7 @@ import Animated, {
   withTiming,
   withDelay,
 } from 'react-native-reanimated';
+import { COLORS } from '../src/constants/theme';
 
 export default function SplashScreen() {
   const router = useRouter();
@@ -33,7 +34,7 @@ export default function SplashScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#0A0A0F', '#12121A', '#0A0A0F']}
+        colors={[COLORS.background, COLORS.backgroundSecondary, COLORS.background]}
         style={StyleSheet.absoluteFill}
       />
       <View style={styles.content}>
@@ -49,7 +50,7 @@ export default function SplashScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0A0F',
+    backgroundColor: COLORS.background,
   },
   content: {
     flex: 1,
@@ -59,12 +60,12 @@ const styles = StyleSheet.create({
   logo: {
     fontSize: 48,
     fontWeight: 'bold',
-    color: '#8B7FD9',
+    color: COLORS.primary,
     marginBottom: 16,
   },
   tagline: {
     fontSize: 14,
-    color: '#888',
+    color: COLORS.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
